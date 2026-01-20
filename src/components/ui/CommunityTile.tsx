@@ -23,6 +23,7 @@ export function CommunityTile({ name, memberCount, color, delay = 0 }: Community
       transition={{ duration: 0.4, delay }}
       viewport={{ once: true }}
       whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.97 }}
       className={`bg-gradient-to-br ${colorStyles[color]} rounded-2xl p-5 cursor-pointer transition-all duration-300`}
     >
       <h4 className="font-serif font-medium text-foreground mb-2">{name}</h4>

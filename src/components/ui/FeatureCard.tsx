@@ -23,6 +23,7 @@ export function FeatureCard({ icon: Icon, title, description, variant = "lilac",
       transition={{ duration: 0.5, delay }}
       viewport={{ once: true }}
       whileHover={{ y: -4 }}
+      whileTap={{ scale: 0.98 }}
       className="bg-card rounded-2xl p-6 shadow-card hover:shadow-hover transition-all duration-300 cursor-pointer group"
     >
       <div className={`w-12 h-12 rounded-xl ${variantStyles[variant]} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>

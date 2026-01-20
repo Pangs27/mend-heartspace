@@ -18,7 +18,9 @@ export function ExpertCard({ name, specialty, rating, sessionPrice, imageUrl, de
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
       viewport={{ once: true }}
-      className="bg-card rounded-2xl p-5 shadow-card hover:shadow-hover transition-all duration-300"
+      whileHover={{ y: -4 }}
+      whileTap={{ scale: 0.98 }}
+      className="bg-card rounded-2xl p-5 shadow-card hover:shadow-hover transition-all duration-300 cursor-pointer"
     >
       <div className="flex items-start gap-4">
         <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-lilac-200 to-mint-200 flex items-center justify-center text-lg font-medium text-foreground">

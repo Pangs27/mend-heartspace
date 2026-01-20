@@ -160,4 +160,37 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Haptic-style micro-interactions */
+  .tap-scale {
+    @apply transition-transform duration-150 ease-out active:scale-[0.97] cursor-pointer;
+  }
+
+  .tap-scale-sm {
+    @apply transition-transform duration-100 ease-out active:scale-[0.98] cursor-pointer;
+  }
+
+  .tap-scale-lg {
+    @apply transition-transform duration-150 ease-out active:scale-[0.95] cursor-pointer;
+  }
+
+  /* Soft press effect for cards */
+  .press-effect {
+    @apply transition-all duration-200 ease-out active:scale-[0.98] active:shadow-soft cursor-pointer;
+  }
+
+  /* Gentle bounce on interaction */
+  .bounce-tap {
+    @apply transition-transform duration-200 active:scale-95;
+  }
+
+  .bounce-tap:active {
+    animation: bounce-back 300ms ease-out;
+  }
+}
+
+@keyframes bounce-back {
+  0% { transform: scale(0.95); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
 }

@@ -29,10 +29,12 @@ export function PricingCard({
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
       viewport={{ once: true }}
-      className={`relative rounded-2xl p-6 ${
+      whileHover={{ y: -4 }}
+      whileTap={{ scale: 0.98 }}
+      className={`relative rounded-2xl p-6 cursor-pointer transition-all duration-300 ${
         highlighted
           ? "bg-card shadow-hover border-2 border-primary/30"
-          : "bg-card shadow-card"
+          : "bg-card shadow-card hover:shadow-hover"
       }`}
     >
       {highlighted && (
