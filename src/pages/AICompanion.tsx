@@ -1,17 +1,16 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Sparkles, Heart, Cloud, Zap, Moon, Lock } from "lucide-react";
+import { Send, Sparkles, Heart, Cloud, Moon, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
 import { format } from "date-fns";
 
-const quickEmotions = [
-  { label: "I feel anxious", icon: Zap },
-  { label: "I feel overwhelmed", icon: Cloud },
-  { label: "I can't sleep", icon: Moon },
-  { label: "I feel lonely", icon: Heart },
-  { label: "I need to talk", icon: Sparkles },
+const gentlePrompts = [
+  { label: "Reflect on today", icon: Sparkles },
+  { label: "Something that's been sitting with me", icon: Cloud },
+  { label: "I feel unsettled and don't know why", icon: Moon },
+  { label: "I just need to say this out loud", icon: Heart },
 ];
 
 interface ChatMessage {
@@ -131,9 +130,9 @@ export default function AICompanion() {
     }
   }, [isAuthenticated, isDisabled, isLoading, navigate]);
 
-  const handleQuickEmotion = (emotion: string) => {
+  const handlePromptClick = (prompt: string) => {
     if (!isDisabled && !isLoading) {
-      handleSendMessage(emotion);
+      setMessage(prompt);
     }
   };
 
@@ -147,17 +146,17 @@ export default function AICompanion() {
   return (
     <Layout>
       <div className="min-h-[calc(100vh-4rem)] flex flex-col lg:flex-row">
-        {/* Sidebar - Emotional Shortcuts */}
+        {/* Sidebar - Gentle Prompts */}
         <aside className="w-full lg:w-72 bg-muted/30 border-b lg:border-b-0 lg:border-r border-border p-4 lg:p-6">
-          <h3 className="text-sm font-medium text-muted-foreground mb-4">Quick start</h3>
+          <h3 className="text-sm font-medium text-muted-foreground mb-4">Gentle prompts</h3>
           <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0">
-            {quickEmotions.map((emotion, index) => (
+            {gentlePrompts.map((prompt, index) => (
               <motion.button
-                key={emotion.label}
+                key={prompt.label}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
-                onClick={() => handleQuickEmotion(emotion.label)}
+                onClick={() => handlePromptClick(prompt.label)}
                 disabled={isDisabled || isLoading}
                 className={`flex items-center gap-3 px-4 py-3 bg-card rounded-xl transition-all whitespace-nowrap lg:whitespace-normal text-left group ${
                   isDisabled || isLoading 
@@ -165,12 +164,12 @@ export default function AICompanion() {
                     : "hover:shadow-soft cursor-pointer"
                 }`}
               >
-                <div className={`w-8 h-8 rounded-lg bg-lilac-100 flex items-center justify-center transition-colors ${
+                <div className={`w-8 h-8 rounded-lg bg-lilac-100 flex items-center justify-center transition-colors shrink-0 ${
                   !isDisabled && !isLoading ? "group-hover:bg-lilac-200" : ""
                 }`}>
-                  <emotion.icon className="w-4 h-4 text-lilac-600" />
+                  <prompt.icon className="w-4 h-4 text-lilac-600" />
                 </div>
-                <span className="text-sm text-foreground">{emotion.label}</span>
+                <span className="text-sm text-foreground">{prompt.label}</span>
               </motion.button>
             ))}
           </div>
