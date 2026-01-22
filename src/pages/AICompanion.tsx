@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Sparkles, Heart, Cloud, Zap, Moon, Lock } from "lucide-react";
@@ -69,6 +69,20 @@ export default function AICompanion() {
   const [isLoading, setIsLoading] = useState(false);
   const [showRedirectMessage, setShowRedirectMessage] = useState(false);
   const [isDisabled, setIsDisabled] = useState(false);
+
+  // Auto-render first assistant message for logged-in users
+  useEffect(() => {
+    if (isAuthenticated && messages.length === 0) {
+      const initialMessage: ChatMessage = {
+        id: `assistant-init-${Date.now()}`,
+        role: "assistant",
+        content: lastCheckIn
+          ? "Last time, you shared something that felt important. How are things feeling today?"
+          : "How are you feeling today? You can start wherever feels easiest.",
+      };
+      setMessages([initialMessage]);
+    }
+  }, [isAuthenticated, lastCheckIn]);
 
   const handleSendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isDisabled || isLoading) return;
