@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Send, Sparkles, Heart, Cloud, Moon, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
 const gentlePrompts = [
@@ -19,22 +20,6 @@ interface ChatMessage {
   content: string;
 }
 
-// Placeholder for auth check - replace with actual Supabase auth later
-const useAuth = () => {
-  // TODO: Replace with actual auth check from Supabase
-  // const { user } = useSupabaseAuth();
-  // return { isAuthenticated: !!user, user };
-  
-  // For now, check localStorage for a mock auth state (for testing)
-  const isAuthenticated = localStorage.getItem("mend_mock_auth") === "true";
-  const lastCheckIn = localStorage.getItem("mend_last_checkin");
-  return { 
-    isAuthenticated, 
-    user: isAuthenticated ? { id: "mock" } : null,
-    lastCheckIn: lastCheckIn ? new Date(lastCheckIn) : null
-  };
-};
-
 // Placeholder assistant response - replace with Edge Function call later
 const getAssistantResponse = async (userMessage: string): Promise<string> => {
   // TODO: Replace with Supabase Edge Function call
@@ -49,7 +34,7 @@ const getAssistantResponse = async (userMessage: string): Promise<string> => {
 
 export default function AICompanion() {
   const navigate = useNavigate();
-  const { isAuthenticated, lastCheckIn } = useAuth();
+  const { isAuthenticated, lastCheckIn, updateLastCheckIn } = useAuth();
   
   // Dynamic welcome message based on user state
   const getWelcomeMessage = () => {
@@ -102,7 +87,7 @@ export default function AICompanion() {
       setIsDisabled(true);
     } else {
       // Update last check-in for authenticated users
-      localStorage.setItem("mend_last_checkin", new Date().toISOString());
+      updateLastCheckIn();
     }
 
     try {

@@ -1,12 +1,69 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Heart, Mail, Lock, User } from "lucide-react";
+import { Heart, Mail, Lock, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export default function SignUp() {
+  const navigate = useNavigate();
+  const { signUp, signInWithGoogle, isAuthenticated } = useAuth();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    navigate("/companion");
+    return null;
+  }
+
+  const handleEmailSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (!agreedToTerms) {
+      toast.error("Please agree to the Terms of Service and Privacy Policy");
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await signUp(email, password, name);
+    setIsLoading(false);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Account created successfully!");
+      navigate("/companion");
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setIsLoading(true);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      setIsLoading(false);
+      toast.error(error.message);
+    }
+    // Google OAuth will redirect, so we don't need to handle success here
+  };
+
   return (
     <div className="min-h-screen gradient-hero flex items-center justify-center p-4">
       <motion.div
@@ -31,7 +88,12 @@ export default function SignUp() {
           </div>
 
           {/* Google Sign Up */}
-          <Button variant="outline" className="w-full mb-4 gap-2">
+          <Button 
+            variant="outline" 
+            className="w-full mb-4 gap-2"
+            onClick={handleGoogleSignUp}
+            disabled={isLoading}
+          >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
                 fill="currentColor"
@@ -63,12 +125,20 @@ export default function SignUp() {
           </div>
 
           {/* Form */}
-          <form className="space-y-4">
+          <form onSubmit={handleEmailSignUp} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input id="name" type="text" placeholder="Your name" className="pl-10" />
+                <Input 
+                  id="name" 
+                  type="text" 
+                  placeholder="Your name" 
+                  className="pl-10"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
             </div>
 
@@ -76,7 +146,15 @@ export default function SignUp() {
               <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input id="email" type="email" placeholder="you@example.com" className="pl-10" />
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="you@example.com" 
+                  className="pl-10"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
             </div>
 
@@ -84,12 +162,26 @@ export default function SignUp() {
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input id="password" type="password" placeholder="••••••••" className="pl-10" />
+                <Input 
+                  id="password" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  className="pl-10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
             </div>
 
             <div className="flex items-start space-x-2">
-              <Checkbox id="terms" className="mt-0.5" />
+              <Checkbox 
+                id="terms" 
+                className="mt-0.5"
+                checked={agreedToTerms}
+                onCheckedChange={(checked) => setAgreedToTerms(checked === true)}
+                disabled={isLoading}
+              />
               <label htmlFor="terms" className="text-xs text-muted-foreground leading-relaxed">
                 I agree to MEND's{" "}
                 <a href="#" className="text-primary hover:underline">Terms of Service</a> and{" "}
@@ -97,8 +189,19 @@ export default function SignUp() {
               </label>
             </div>
 
-            <Button className="w-full gradient-lilac text-primary-foreground border-0 shadow-soft hover:shadow-hover transition-all">
-              Create Account
+            <Button 
+              type="submit"
+              className="w-full gradient-lilac text-primary-foreground border-0 shadow-soft hover:shadow-hover transition-all"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                "Create Account"
+              )}
             </Button>
           </form>
 

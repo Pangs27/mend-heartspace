@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Heart } from "lucide-react";
+import { Menu, X, Heart, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 const navLinks = [
   { name: "Home", path: "/" },
@@ -17,6 +18,8 @@ const navLinks = [
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isAuthenticated, user, signOut } = useAuth();
 
   // Close menu on route change
   useEffect(() => {
@@ -34,6 +37,11 @@ export function Navbar() {
       document.body.style.overflow = "";
     };
   }, [isOpen]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   return (
     <>
@@ -65,18 +73,42 @@ export function Navbar() {
               ))}
             </div>
 
-            {/* Auth Buttons */}
+            {/* Auth Buttons - Desktop */}
             <div className="hidden lg:flex items-center gap-3">
-              <Link to="/login">
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                  Login
-                </Button>
-              </Link>
-              <Link to="/signup">
-                <Button size="sm" className="gradient-lilac text-primary-foreground shadow-soft hover:shadow-hover transition-all duration-300 border-0">
-                  Sign Up
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-full">
+                    <div className="w-7 h-7 rounded-full gradient-lilac flex items-center justify-center">
+                      <User className="w-4 h-4 text-primary-foreground" />
+                    </div>
+                    <span className="text-sm font-medium text-foreground max-w-[120px] truncate">
+                      {user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User"}
+                    </span>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleSignOut}
+                    className="text-muted-foreground hover:text-foreground gap-1.5"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign out
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login">
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                      Login
+                    </Button>
+                  </Link>
+                  <Link to="/signup">
+                    <Button size="sm" className="gradient-lilac text-primary-foreground shadow-soft hover:shadow-hover transition-all duration-300 border-0">
+                      Sign Up
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -136,23 +168,54 @@ export function Navbar() {
                   </motion.div>
                 ))}
                 
-                {/* Auth Section */}
+                {/* Auth Section - Mobile */}
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3, duration: 0.25 }}
                   className="pt-5 mt-4 border-t border-border/50 flex flex-col gap-3"
                 >
-                  <Link to="/login" onClick={() => setIsOpen(false)}>
-                    <Button variant="outline" className="w-full h-12 text-base rounded-xl">
-                      Login
-                    </Button>
-                  </Link>
-                  <Link to="/signup" onClick={() => setIsOpen(false)}>
-                    <Button className="w-full h-12 text-base rounded-xl gradient-lilac text-primary-foreground border-0 shadow-soft">
-                      Sign Up
-                    </Button>
-                  </Link>
+                  {isAuthenticated ? (
+                    <>
+                      <div className="flex items-center gap-3 px-4 py-2">
+                        <div className="w-10 h-10 rounded-full gradient-lilac flex items-center justify-center">
+                          <User className="w-5 h-5 text-primary-foreground" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {user?.user_metadata?.full_name || "User"}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {user?.email}
+                          </p>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        className="w-full h-12 text-base rounded-xl gap-2"
+                        onClick={() => {
+                          handleSignOut();
+                          setIsOpen(false);
+                        }}
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign out
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Link to="/login" onClick={() => setIsOpen(false)}>
+                        <Button variant="outline" className="w-full h-12 text-base rounded-xl">
+                          Login
+                        </Button>
+                      </Link>
+                      <Link to="/signup" onClick={() => setIsOpen(false)}>
+                        <Button className="w-full h-12 text-base rounded-xl gradient-lilac text-primary-foreground border-0 shadow-soft">
+                          Sign Up
+                        </Button>
+                      </Link>
+                    </>
+                  )}
                 </motion.div>
               </div>
             </motion.div>

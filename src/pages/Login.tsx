@@ -1,11 +1,55 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Heart, Mail, Lock } from "lucide-react";
+import { Heart, Mail, Lock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export default function Login() {
+  const navigate = useNavigate();
+  const { signIn, signInWithGoogle, isAuthenticated } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    navigate("/companion");
+    return null;
+  }
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await signIn(email, password);
+    setIsLoading(false);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Welcome back!");
+      navigate("/companion");
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      setIsLoading(false);
+      toast.error(error.message);
+    }
+    // Google OAuth will redirect, so we don't need to handle success here
+  };
+
   return (
     <div className="min-h-screen gradient-hero flex items-center justify-center p-4">
       <motion.div
@@ -30,7 +74,12 @@ export default function Login() {
           </div>
 
           {/* Google Login */}
-          <Button variant="outline" className="w-full mb-4 gap-2">
+          <Button 
+            variant="outline" 
+            className="w-full mb-4 gap-2"
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
+          >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
                 fill="currentColor"
@@ -62,12 +111,20 @@ export default function Login() {
           </div>
 
           {/* Form */}
-          <form className="space-y-4">
+          <form onSubmit={handleEmailLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input id="email" type="email" placeholder="you@example.com" className="pl-10" />
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="you@example.com" 
+                  className="pl-10"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
             </div>
 
@@ -80,12 +137,31 @@ export default function Login() {
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input id="password" type="password" placeholder="••••••••" className="pl-10" />
+                <Input 
+                  id="password" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  className="pl-10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
             </div>
 
-            <Button className="w-full gradient-lilac text-primary-foreground border-0 shadow-soft hover:shadow-hover transition-all">
-              Sign In
+            <Button 
+              type="submit"
+              className="w-full gradient-lilac text-primary-foreground border-0 shadow-soft hover:shadow-hover transition-all"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </Button>
           </form>
 
@@ -97,7 +173,7 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Magic Link */}
+        {/* Magic Link - placeholder for future implementation */}
         <div className="mt-4 text-center">
           <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Sign in with magic link →
