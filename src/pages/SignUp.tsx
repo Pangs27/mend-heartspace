@@ -20,7 +20,7 @@ export default function SignUp() {
 
   // Redirect if already authenticated
   if (isAuthenticated) {
-    navigate("/companion");
+    navigate("/app");
     return null;
   }
 
@@ -50,7 +50,7 @@ export default function SignUp() {
       toast.error(error.message);
     } else {
       toast.success("Account created successfully!");
-      navigate("/companion");
+      navigate("/app");
     }
   };
 

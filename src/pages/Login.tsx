@@ -17,7 +17,7 @@ export default function Login() {
 
   // Redirect if already authenticated
   if (isAuthenticated) {
-    navigate("/companion");
+    navigate("/app");
     return null;
   }
 
@@ -36,7 +36,7 @@ export default function Login() {
       toast.error(error.message);
     } else {
       toast.success("Welcome back!");
-      navigate("/companion");
+      navigate("/app");
     }
   };
 
