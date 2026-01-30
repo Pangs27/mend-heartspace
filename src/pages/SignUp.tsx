@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
 
 export default function SignUp() {
@@ -57,17 +57,20 @@ export default function SignUp() {
 
   const handleGoogleSignUp = async () => {
     setIsLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: window.location.origin + "/auth/callback",
-      },
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
     });
-    if (error) {
-      setIsLoading(false);
-      toast.error(error.message);
+    
+    if (result.redirected) {
+      return; // OAuth redirect in progress
     }
-    // Google OAuth will redirect, so we don't need to handle success here
+    
+    if (result.error) {
+      setIsLoading(false);
+      toast.error(result.error.message);
+    } else {
+      navigate("/app");
+    }
   };
 
   return (
