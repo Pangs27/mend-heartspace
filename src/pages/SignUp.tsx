@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export default function SignUp() {
@@ -56,7 +57,12 @@ export default function SignUp() {
 
   const handleGoogleSignUp = async () => {
     setIsLoading(true);
-    const { error } = await signInWithGoogle();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin + "/auth/callback",
+      },
+    });
     if (error) {
       setIsLoading(false);
       toast.error(error.message);
