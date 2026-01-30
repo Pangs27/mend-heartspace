@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Sparkles, Heart, Cloud, Moon, Lock } from "lucide-react";
@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
+import { streamChat } from "@/lib/streamChat";
+import { toast } from "sonner";
 
 const gentlePrompts = [
   { label: "Reflect on today", icon: Sparkles },
@@ -16,21 +18,9 @@ const gentlePrompts = [
 
 interface ChatMessage {
   id: string;
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant";
   content: string;
 }
-
-// Placeholder assistant response - replace with Edge Function call later
-const getAssistantResponse = async (userMessage: string): Promise<string> => {
-  // TODO: Replace with Supabase Edge Function call
-  // const { data } = await supabase.functions.invoke('mend_chat', { body: { message: userMessage } });
-  // return data.response;
-  
-  // Simulate response delay
-  await new Promise(resolve => setTimeout(resolve, 1200));
-  
-  return "I hear you, and I'm glad you're reaching out. What you're feeling is valid, and it takes courage to express it. I'd love to continue supporting you through this.";
-};
 
 export default function AICompanion() {
   const navigate = useNavigate();
@@ -90,30 +80,50 @@ export default function AICompanion() {
       updateLastCheckIn();
     }
 
+    // Build messages for the API (only user and assistant messages)
+    const apiMessages = [...messages, userMessage].map(m => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    let assistantContent = "";
+    const assistantId = `assistant-${Date.now()}`;
+
     try {
-      // Get assistant response (placeholder - replace with Edge Function)
-      const response = await getAssistantResponse(content);
-      
-      const assistantMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        content: response,
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-
-      // If not authenticated, show auth prompt after response
-      if (!isAuthenticated) {
-        setTimeout(() => {
-          setShowRedirectMessage(true);
-        }, 800);
-      }
+      await streamChat({
+        messages: apiMessages,
+        onDelta: (chunk) => {
+          assistantContent += chunk;
+          setMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last?.role === "assistant" && last.id === assistantId) {
+              return prev.map((m, i) => 
+                i === prev.length - 1 ? { ...m, content: assistantContent } : m
+              );
+            }
+            return [...prev, { id: assistantId, role: "assistant", content: assistantContent }];
+          });
+        },
+        onDone: () => {
+          setIsLoading(false);
+          // If not authenticated, show auth prompt after response
+          if (!isAuthenticated) {
+            setTimeout(() => {
+              setShowRedirectMessage(true);
+            }, 800);
+          }
+        },
+        onError: (error) => {
+          toast.error(error);
+          setIsLoading(false);
+        },
+      });
     } catch (error) {
       console.error("Error getting response:", error);
-    } finally {
+      toast.error("Something went wrong. Please try again.");
       setIsLoading(false);
     }
-  }, [isAuthenticated, isDisabled, isLoading, navigate]);
+  }, [isAuthenticated, isDisabled, isLoading, messages, updateLastCheckIn]);
 
   const handlePromptClick = (prompt: string) => {
     if (!isDisabled && !isLoading) {
