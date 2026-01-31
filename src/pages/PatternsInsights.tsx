@@ -1,44 +1,33 @@
 import { motion } from "framer-motion";
-import { TrendingUp, Calendar, Lightbulb, BarChart3, Target, Repeat } from "lucide-react";
+import { TrendingUp, Calendar, Lightbulb, Repeat, Heart, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
+import { Link } from "react-router-dom";
 
 const insightCards = [
   {
     icon: TrendingUp,
-    title: "Mood Timeline",
-    description: "Track your emotional journey day by day. See how your moods shift and flow over time.",
+    title: "Your Emotional Journey",
+    description: "Over time, you'll see how your feelings shift and evolve—a gentle map of where you've been.",
     variant: "lilac" as const,
   },
   {
     icon: Repeat,
-    title: "Emotional Patterns",
-    description: "Discover recurring emotional cycles. Understand when and why certain feelings arise.",
+    title: "Patterns Worth Knowing",
+    description: "As you share more, MEND will help you notice rhythms in your emotions you may not have seen before.",
     variant: "mint" as const,
   },
   {
     icon: Lightbulb,
-    title: "Trigger Insights",
-    description: "Identify what triggers different emotions. Build awareness of your emotional responses.",
+    title: "Moments of Clarity",
+    description: "Sometimes a small insight can shift everything. These will surface naturally through reflection.",
     variant: "peach" as const,
   },
   {
     icon: Calendar,
-    title: "Weekly Reflections",
-    description: "Review your week's emotional landscape. Celebrate progress and identify areas of growth.",
+    title: "Reflections Over Time",
+    description: "Looking back can be powerful. You'll be able to see how far you've come, one conversation at a time.",
     variant: "lilac" as const,
-  },
-  {
-    icon: BarChart3,
-    title: "Emotion Breakdown",
-    description: "See which emotions appear most frequently. Understand your emotional baseline.",
-    variant: "mint" as const,
-  },
-  {
-    icon: Target,
-    title: "Growth Goals",
-    description: "Set and track emotional wellness goals. Small steps lead to meaningful change.",
-    variant: "peach" as const,
   },
 ];
 
@@ -67,7 +56,7 @@ export default function PatternsInsights() {
               transition={{ duration: 0.6 }}
               className="text-4xl md:text-5xl font-serif font-medium text-foreground mb-6"
             >
-              Patterns & Insights
+              Understanding grows with time
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -75,25 +64,46 @@ export default function PatternsInsights() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="text-lg text-muted-foreground leading-relaxed mb-8"
             >
-              Understanding your emotions is the first step to growth. MEND helps you discover patterns, identify triggers, and track your journey.
+              MEND learns alongside you. The more you share, the clearer your emotional patterns become—gently, without pressure.
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
+              className="space-y-3"
             >
-              <Button size="lg" className="gradient-lilac text-primary-foreground border-0 shadow-soft hover:shadow-hover transition-all px-8">
-                View My Insights
-              </Button>
+              <Link to="/companion">
+                <Button size="lg" className="gradient-lilac text-primary-foreground border-0 shadow-soft hover:shadow-hover transition-all px-8">
+                  Start building my insights
+                </Button>
+              </Link>
+              <p className="text-sm text-muted-foreground">
+                Insights grow through conversation—there's no rush.
+              </p>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Dashboard Cards */}
+      {/* What's possible section */}
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-2xl md:text-3xl font-serif font-medium text-foreground mb-3">
+              What becomes possible
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              These insights will unfold naturally as you continue your journey with MEND.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {insightCards.map((card, index) => (
               <motion.div
                 key={card.title}
@@ -101,10 +111,9 @@ export default function PatternsInsights() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                whileHover={{ y: -4 }}
-                className="bg-card rounded-2xl p-6 shadow-card hover:shadow-hover transition-all duration-300 cursor-pointer group"
+                className="bg-card rounded-2xl p-6 shadow-card"
               >
-                <div className={`w-12 h-12 rounded-xl ${variantStyles[card.variant]} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                <div className={`w-12 h-12 rounded-xl ${variantStyles[card.variant]} flex items-center justify-center mb-4`}>
                   <card.icon className={`w-6 h-6 ${variantTextStyles[card.variant]}`} />
                 </div>
                 <h3 className="text-lg font-serif font-medium text-foreground mb-2">{card.title}</h3>
@@ -115,7 +124,7 @@ export default function PatternsInsights() {
         </div>
       </section>
 
-      {/* Preview Placeholder */}
+      {/* Empty State - Intentional beginning */}
       <section className="py-20 bg-muted/30">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -123,24 +132,34 @@ export default function PatternsInsights() {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             viewport={{ once: true }}
-            className="max-w-4xl mx-auto bg-card rounded-3xl p-8 lg:p-12 shadow-card"
+            className="max-w-2xl mx-auto bg-card rounded-3xl p-8 lg:p-12 shadow-card text-center"
           >
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-serif font-medium text-foreground mb-2">
-                Your insights will appear here
-              </h2>
-              <p className="text-muted-foreground">
-                Start conversations with MEND to build your emotional profile
-              </p>
+            {/* Soft progress indicator */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-lilac-100/60 mb-6">
+              <Sparkles className="w-4 h-4 text-lilac-600" />
+              <span className="text-sm text-lilac-600 font-medium">Listening and learning</span>
             </div>
 
-            {/* Placeholder Graph */}
-            <div className="h-48 bg-gradient-to-br from-lilac-100/50 to-mint-100/50 rounded-2xl flex items-center justify-center">
-              <div className="text-center">
-                <BarChart3 className="w-12 h-12 text-muted-foreground/50 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Mood trends will show here</p>
-              </div>
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-lilac-100 to-mint-100 flex items-center justify-center mx-auto mb-6">
+              <Heart className="w-8 h-8 text-lilac-600" />
             </div>
+
+            <h2 className="text-2xl font-serif font-medium text-foreground mb-3">
+              This is where your story takes shape
+            </h2>
+            <p className="text-muted-foreground leading-relaxed mb-6 max-w-md mx-auto">
+              MEND builds understanding through conversation. There's nothing to track or complete—just space to reflect, whenever you're ready.
+            </p>
+
+            <Link to="/companion">
+              <Button size="lg" className="gradient-lilac text-primary-foreground border-0 shadow-soft hover:shadow-hover transition-all">
+                Begin a conversation
+              </Button>
+            </Link>
+
+            <p className="text-xs text-muted-foreground mt-4">
+              Your first insights will appear after a few conversations.
+            </p>
           </motion.div>
         </div>
       </section>
