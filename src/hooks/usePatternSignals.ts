@@ -81,6 +81,7 @@ const timeBucketLabels: Record<string, string> = {
   evening: "evening",
   night: "night",
   late_night: "late night",
+  present: "now",
 };
 
 function getEmotionLabel(emotion: string): string {
@@ -179,15 +180,17 @@ function computePatterns(signals: Signal[]): PatternCard[] {
 export interface TimelineEntry {
   date: string;
   emotion: string;
+  timeBucket: string;
 }
 
 function computeTimeline(signals: Signal[]): TimelineEntry[] {
   return signals
     .filter((s) => s.created_at)
-    .slice(0, 7)
+    .slice(0, 5)
     .map((s) => ({
       date: s.created_at!,
       emotion: getEmotionLabel(s.primary_emotion),
+      timeBucket: getTimeBucketLabel(s.time_bucket),
     }));
 }
 
