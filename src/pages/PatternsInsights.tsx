@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Heart, Sparkles, MessageCircle, Clock, Loader2, Lightbulb, Calendar, TrendingUp } from "lucide-react";
+import { Heart, Sparkles, MessageCircle, Clock, Loader2, Lightbulb, Calendar, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
 import { Link } from "react-router-dom";
@@ -14,44 +15,58 @@ const patternIcons: Record<string, typeof Heart> = {
   weekly: Calendar,
 };
 
+// Priority order for insight cards (emotion first)
+const patternPriority: Record<string, number> = {
+  emotion: 0,
+  time: 1,
+  context: 2,
+  weekly: 3,
+};
+
 function getStatusPill(signalCount: number): { label: string; className: string } {
   if (signalCount >= 16) {
-    return { label: "Steady", className: "bg-mint-100 text-mint-500" };
+    return { label: "Steady", className: "bg-mint-100/80 text-mint-500" };
   } else if (signalCount >= 8) {
-    return { label: "Emerging", className: "bg-lilac-100 text-lilac-600" };
+    return { label: "Emerging", className: "bg-lilac-100/80 text-lilac-600" };
   } else if (signalCount >= 3) {
-    return { label: "Forming", className: "bg-peach-100 text-peach-400" };
+    return { label: "Forming", className: "bg-peach-100/70 text-peach-400" };
   }
-  return { label: "Listening", className: "bg-muted text-muted-foreground" };
+  return { label: "Listening", className: "bg-muted/60 text-muted-foreground" };
 }
 
 function StatusPill({ signalCount }: { signalCount: number }) {
   const { label, className } = getStatusPill(signalCount);
   return (
-    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${className}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium tracking-wide ${className}`}>
       {label}
     </span>
   );
 }
 
-function InsightCard({ pattern, index }: { pattern: PatternCardType; index: number }) {
+function InsightCard({ pattern, index, isEmotion }: { pattern: PatternCardType; index: number; isEmotion: boolean }) {
   const Icon = patternIcons[pattern.type] || Sparkles;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.08 }}
-      className="bg-card rounded-2xl p-5 shadow-card"
+      transition={{ duration: 0.35, delay: index * 0.06 }}
+      className={`rounded-2xl p-5 shadow-card transition-shadow ${
+        isEmotion 
+          ? "bg-gradient-to-br from-card to-lilac-50/30 border border-lilac-100/50" 
+          : "bg-card"
+      }`}
     >
-      <div className="flex items-start gap-4">
-        <div className="w-9 h-9 rounded-xl bg-muted/60 flex items-center justify-center shrink-0">
-          <Icon className="w-4 h-4 text-muted-foreground" />
+      <div className="flex items-start gap-3.5">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+          isEmotion ? "bg-lilac-100/70" : "bg-muted/50"
+        }`}>
+          <Icon className={`w-4 h-4 ${isEmotion ? "text-lilac-600" : "text-muted-foreground"}`} />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-base font-serif font-medium text-foreground mb-1">{pattern.title}</h3>
-          <p className="text-sm text-foreground/80 leading-relaxed">{pattern.body}</p>
-          <p className="text-xs text-muted-foreground mt-2">Based on recent reflections</p>
+          <h3 className="text-[15px] font-serif font-semibold text-foreground mb-1.5">{pattern.title}</h3>
+          <p className="text-sm text-foreground/75 leading-snug">{pattern.body}</p>
+          <p className="text-[11px] text-muted-foreground/70 mt-2.5">Based on recent reflections</p>
         </div>
       </div>
     </motion.div>
@@ -59,28 +74,47 @@ function InsightCard({ pattern, index }: { pattern: PatternCardType; index: numb
 }
 
 function RecentMoments({ timeline }: { timeline: TimelineEntry[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleCount = 4;
+  const hasMore = timeline.length > visibleCount;
+  const visibleItems = expanded ? timeline : timeline.slice(0, visibleCount);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.3 }}
-      className="mt-8"
+      transition={{ duration: 0.35, delay: 0.25 }}
+      className="mt-10"
     >
-      <h3 className="text-sm font-medium text-muted-foreground mb-3">Recent moments</h3>
-      <div className="bg-card rounded-xl p-4 shadow-card">
-        <div className="space-y-2.5">
-          {timeline.map((entry, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground w-8 shrink-0 font-medium">
+      <h3 className="text-xs font-medium text-muted-foreground/80 uppercase tracking-wider mb-3">Recent moments</h3>
+      <div className="bg-card rounded-xl px-4 py-3 shadow-card relative">
+        <div className="space-y-3">
+          {visibleItems.map((entry, i) => (
+            <div key={i} className="flex items-center gap-2.5 text-[13px]">
+              <span className="text-muted-foreground/70 w-7 shrink-0 font-medium">
                 {format(new Date(entry.date), "EEE")}
               </span>
-              <span className="text-muted-foreground/50">·</span>
-              <span className="text-foreground capitalize">{entry.emotion}</span>
-              <span className="text-muted-foreground/50">·</span>
-              <span className="text-muted-foreground">{entry.timeBucket}</span>
+              <span className="text-muted-foreground/40">•</span>
+              <span className="text-foreground/80 capitalize">{entry.emotion}</span>
+              <span className="text-muted-foreground/40">•</span>
+              <span className="text-muted-foreground/60">{entry.timeBucket}</span>
             </div>
           ))}
         </div>
+        
+        {hasMore && !expanded && (
+          <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none rounded-b-xl" />
+        )}
+        
+        {hasMore && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mt-3 pt-2 border-t border-border/50"
+          >
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+            {expanded ? "Show less" : "View more"}
+          </button>
+        )}
       </div>
     </motion.div>
   );
@@ -89,19 +123,19 @@ function RecentMoments({ timeline }: { timeline: TimelineEntry[] }) {
 function CheckInCard() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.1 }}
-      className="bg-muted/40 rounded-xl p-4 flex items-center justify-between gap-4"
+      transition={{ duration: 0.35, delay: 0.08 }}
+      className="bg-muted/25 rounded-lg px-4 py-3 flex items-center justify-between gap-3"
     >
       <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground">Want to add a check-in?</p>
-        <p className="text-xs text-muted-foreground mt-0.5">Even 2 minutes helps patterns form.</p>
+        <p className="text-sm text-foreground/80">Want to add a check-in?</p>
+        <p className="text-[11px] text-muted-foreground/70 mt-0.5">Even 2 minutes helps patterns form.</p>
       </div>
       <Link to="/companion">
-        <Button size="sm" variant="outline" className="shrink-0 text-xs h-8 px-3 rounded-lg">
+        <Button size="sm" variant="ghost" className="shrink-0 text-xs h-7 px-3 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50">
           <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
-          Talk to MEND
+          Add a check-in
         </Button>
       </Link>
     </motion.div>
@@ -111,9 +145,9 @@ function CheckInCard() {
 function EmptyState() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.4 }}
       className="bg-card rounded-2xl p-8 shadow-card text-center max-w-md mx-auto"
     >
       <div className="w-14 h-14 rounded-full bg-gradient-to-br from-lilac-100 to-mint-100 flex items-center justify-center mx-auto mb-5">
@@ -146,14 +180,21 @@ function LoadingState() {
 }
 
 function DynamicInsights({ patterns, timeline }: { patterns: PatternCardType[]; timeline: TimelineEntry[] }) {
-  // Show max 4 insights
-  const visiblePatterns = patterns.slice(0, 4);
+  // Sort patterns by priority (emotion first) and limit to 4
+  const sortedPatterns = [...patterns]
+    .sort((a, b) => (patternPriority[a.type] ?? 99) - (patternPriority[b.type] ?? 99))
+    .slice(0, 4);
 
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {visiblePatterns.map((pattern, index) => (
-          <InsightCard key={pattern.type} pattern={pattern} index={index} />
+        {sortedPatterns.map((pattern, index) => (
+          <InsightCard 
+            key={pattern.type} 
+            pattern={pattern} 
+            index={index} 
+            isEmotion={pattern.type === "emotion"}
+          />
         ))}
       </div>
 
@@ -171,27 +212,29 @@ export default function PatternsInsights() {
   return (
     <Layout>
       <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-background to-muted/20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
           {/* Header section */}
           <motion.header
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6"
+            transition={{ duration: 0.4 }}
+            className="flex items-start justify-between gap-3 mb-5"
           >
-            <div>
-              <h1 className="text-2xl md:text-3xl font-serif font-medium text-foreground">
-                Patterns & Insights
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl md:text-[28px] font-serif font-semibold text-foreground leading-tight">
+                  Patterns & Insights
+                </h1>
+                <StatusPill signalCount={signalCount} />
+              </div>
+              <p className="text-sm text-muted-foreground/70">
                 Small patterns, over time. Nothing rushed.
               </p>
             </div>
-            <StatusPill signalCount={signalCount} />
           </motion.header>
 
           {/* Check-in CTA card */}
-          <div className="mb-8">
+          <div className="mb-6">
             <CheckInCard />
           </div>
 
