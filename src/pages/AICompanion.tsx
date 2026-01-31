@@ -5,9 +5,9 @@ import { Send, Sparkles, Heart, Cloud, Moon, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
-import { format } from "date-fns";
 import { streamChat } from "@/lib/streamChat";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const gentlePrompts = [
   { label: "Reflect on today", icon: Sparkles },
@@ -24,94 +24,202 @@ interface ChatMessage {
 
 export default function AICompanion() {
   const navigate = useNavigate();
-  const { isAuthenticated, lastCheckIn, updateLastCheckIn } = useAuth();
-  
-  // Dynamic welcome message based on user state
-  const getWelcomeMessage = () => {
-    if (!isAuthenticated) {
-      return "This is a safe, private space. Take your time.";
-    }
-    if (lastCheckIn) {
-      return `Last time you checked in on ${format(lastCheckIn, "EEEE, MMM d")}. How are things feeling today?`;
-    }
-    return "This is your space to check in today.";
-  };
+  const { isAuthenticated, user } = useAuth();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [hasInteracted, setHasInteracted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingHistory, setIsFetchingHistory] = useState(true);
   const [showRedirectMessage, setShowRedirectMessage] = useState(false);
   const [isDisabled, setIsDisabled] = useState(false);
 
-  // Auto-render first assistant message for logged-in users
+  // Scroll to bottom when messages change
   useEffect(() => {
-    if (isAuthenticated && messages.length === 0) {
-      const initialMessage: ChatMessage = {
-        id: `assistant-init-${Date.now()}`,
-        role: "assistant",
-        content: lastCheckIn
-          ? "Last time, you shared something that felt important. How are things feeling today?"
-          : "How are you feeling today? You can start wherever feels easiest.",
-      };
-      setMessages([initialMessage]);
-    }
-  }, [isAuthenticated, lastCheckIn]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Fetch chat history on mount for authenticated users
+  useEffect(() => {
+    const fetchChatHistory = async () => {
+      if (!isAuthenticated || !user?.id) {
+        setIsFetchingHistory(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("mend_messages")
+          .select("id, role, content, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true });
+
+        if (error) {
+          console.error("Error fetching chat history:", error);
+          toast.error("Couldn't load your previous conversations");
+        } else if (data && data.length > 0) {
+          setMessages(data.map((msg) => ({
+            id: msg.id,
+            role: msg.role as "user" | "assistant",
+            content: msg.content,
+          })));
+        }
+      } catch (err) {
+        console.error("Error fetching chat history:", err);
+      } finally {
+        setIsFetchingHistory(false);
+      }
+    };
+
+    fetchChatHistory();
+  }, [isAuthenticated, user?.id]);
 
   const handleSendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isDisabled || isLoading) return;
 
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: content.trim(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setMessage("");
-    setHasInteracted(true);
-    setIsLoading(true);
-
-    // If not authenticated, disable further input after first message
+    const trimmedContent = content.trim();
+    
+    // For unauthenticated users, show message but don't persist
     if (!isAuthenticated) {
+      const userMessage: ChatMessage = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: trimmedContent,
+      };
+
+      setMessages(prev => [...prev, userMessage]);
+      setMessage("");
+      setIsLoading(true);
       setIsDisabled(true);
-    } else {
-      // Update last check-in for authenticated users
-      updateLastCheckIn();
+
+      const apiMessages = [...messages, userMessage].map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      let assistantContent = "";
+      const assistantId = `assistant-${Date.now()}`;
+
+      try {
+        await streamChat({
+          messages: apiMessages,
+          onDelta: (chunk) => {
+            assistantContent += chunk;
+            setMessages(prev => {
+              const last = prev[prev.length - 1];
+              if (last?.role === "assistant" && last.id === assistantId) {
+                return prev.map((m, i) => 
+                  i === prev.length - 1 ? { ...m, content: assistantContent } : m
+                );
+              }
+              return [...prev, { id: assistantId, role: "assistant", content: assistantContent }];
+            });
+          },
+          onDone: () => {
+            setIsLoading(false);
+            setTimeout(() => setShowRedirectMessage(true), 800);
+          },
+          onError: (error) => {
+            toast.error(error);
+            setIsLoading(false);
+          },
+        });
+      } catch (error) {
+        console.error("Error getting response:", error);
+        toast.error("Something went wrong. Please try again.");
+        setIsLoading(false);
+      }
+      return;
     }
 
-    // Build messages for the API (only user and assistant messages)
-    const apiMessages = [...messages, userMessage].map(m => ({
-      role: m.role,
-      content: m.content,
-    }));
-
-    let assistantContent = "";
-    const assistantId = `assistant-${Date.now()}`;
+    // Authenticated flow with persistence
+    setMessage("");
+    setIsLoading(true);
 
     try {
+      // 1. Insert user message into database
+      const { data: userMsgData, error: userMsgError } = await supabase
+        .from("mend_messages")
+        .insert({
+          user_id: user!.id,
+          role: "user",
+          content: trimmedContent,
+        })
+        .select()
+        .single();
+
+      if (userMsgError) {
+        throw new Error("Failed to save your message");
+      }
+
+      const userMessage: ChatMessage = {
+        id: userMsgData.id,
+        role: "user",
+        content: trimmedContent,
+      };
+
+      setMessages(prev => [...prev, userMessage]);
+
+      // 2. Prepare messages for AI
+      const apiMessages = [...messages, userMessage].map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      let assistantContent = "";
+      const tempAssistantId = `temp-assistant-${Date.now()}`;
+
+      // 3. Stream assistant response
       await streamChat({
         messages: apiMessages,
         onDelta: (chunk) => {
           assistantContent += chunk;
           setMessages(prev => {
             const last = prev[prev.length - 1];
-            if (last?.role === "assistant" && last.id === assistantId) {
+            if (last?.role === "assistant" && last.id === tempAssistantId) {
               return prev.map((m, i) => 
                 i === prev.length - 1 ? { ...m, content: assistantContent } : m
               );
             }
-            return [...prev, { id: assistantId, role: "assistant", content: assistantContent }];
+            return [...prev, { id: tempAssistantId, role: "assistant", content: assistantContent }];
           });
         },
-        onDone: () => {
-          setIsLoading(false);
-          // If not authenticated, show auth prompt after response
-          if (!isAuthenticated) {
-            setTimeout(() => {
-              setShowRedirectMessage(true);
-            }, 800);
+        onDone: async () => {
+          // 4. Save assistant message to database
+          const { data: assistantMsgData, error: assistantMsgError } = await supabase
+            .from("mend_messages")
+            .insert({
+              user_id: user!.id,
+              role: "assistant",
+              content: assistantContent,
+            })
+            .select()
+            .single();
+
+          if (assistantMsgError) {
+            console.error("Failed to save assistant message:", assistantMsgError);
+          } else {
+            // Update the temporary ID with the real one
+            setMessages(prev => prev.map(m => 
+              m.id === tempAssistantId ? { ...m, id: assistantMsgData.id } : m
+            ));
           }
+
+          // 5. Extract signals from user message (fire and forget)
+          try {
+            await supabase.functions.invoke("extract_signals", {
+              body: {
+                user_id: user!.id,
+                message_id: userMsgData.id,
+                content: trimmedContent,
+              },
+            });
+          } catch (signalError) {
+            console.error("Signal extraction failed:", signalError);
+            // Don't show error to user - this is background processing
+          }
+
+          setIsLoading(false);
         },
         onError: (error) => {
           toast.error(error);
@@ -119,11 +227,11 @@ export default function AICompanion() {
         },
       });
     } catch (error) {
-      console.error("Error getting response:", error);
-      toast.error("Something went wrong. Please try again.");
+      console.error("Error in chat flow:", error);
+      toast.error(error instanceof Error ? error.message : "Something went wrong");
       setIsLoading(false);
     }
-  }, [isAuthenticated, isDisabled, isLoading, messages, updateLastCheckIn]);
+  }, [isAuthenticated, isDisabled, isLoading, messages, user]);
 
   const handlePromptClick = (prompt: string) => {
     if (!isDisabled && !isLoading) {
@@ -136,6 +244,14 @@ export default function AICompanion() {
       e.preventDefault();
       handleSendMessage(message);
     }
+  };
+
+  // Welcome message for empty state
+  const getWelcomeMessage = () => {
+    if (!isAuthenticated) {
+      return "This is a safe, private space. Take your time.";
+    }
+    return "This is your space to check in. How are you feeling?";
   };
 
   return (
@@ -191,7 +307,17 @@ export default function AICompanion() {
         <div className="flex-1 flex flex-col">
           {/* Chat Messages */}
           <div className="flex-1 p-6 lg:p-8 overflow-y-auto">
-            {messages.length === 0 ? (
+            {isFetchingHistory ? (
+              /* Loading state while fetching history */
+              <div className="h-full flex flex-col items-center justify-center">
+                <div className="flex gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-lilac-300 animate-pulse" style={{ animationDelay: "0ms" }} />
+                  <span className="w-2 h-2 rounded-full bg-lilac-300 animate-pulse" style={{ animationDelay: "150ms" }} />
+                  <span className="w-2 h-2 rounded-full bg-lilac-300 animate-pulse" style={{ animationDelay: "300ms" }} />
+                </div>
+                <p className="text-sm text-muted-foreground mt-3">Loading your conversations...</p>
+              </div>
+            ) : messages.length === 0 ? (
               /* Empty State */
               <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto">
                 <motion.div
@@ -264,13 +390,13 @@ export default function AICompanion() {
                             <span className="text-xs font-medium text-muted-foreground">MEND</span>
                           </div>
                         )}
-                        <p className="text-sm leading-relaxed">{msg.content}</p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                       </div>
                     </motion.div>
                   ))}
                 </AnimatePresence>
 
-                {/* Loading indicator */}
+                {/* Loading indicator - "MEND is thinking..." */}
                 <AnimatePresence>
                   {isLoading && (
                     <motion.div
@@ -286,10 +412,13 @@ export default function AICompanion() {
                           </div>
                           <span className="text-xs font-medium text-muted-foreground">MEND</span>
                         </div>
-                        <div className="flex gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-lilac-300 animate-pulse" style={{ animationDelay: "0ms" }} />
-                          <span className="w-2 h-2 rounded-full bg-lilac-300 animate-pulse" style={{ animationDelay: "150ms" }} />
-                          <span className="w-2 h-2 rounded-full bg-lilac-300 animate-pulse" style={{ animationDelay: "300ms" }} />
+                        <div className="flex items-center gap-2">
+                          <div className="flex gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-lilac-300 animate-pulse" style={{ animationDelay: "0ms" }} />
+                            <span className="w-2 h-2 rounded-full bg-lilac-300 animate-pulse" style={{ animationDelay: "150ms" }} />
+                            <span className="w-2 h-2 rounded-full bg-lilac-300 animate-pulse" style={{ animationDelay: "300ms" }} />
+                          </div>
+                          <span className="text-sm text-muted-foreground">MEND is thinking…</span>
                         </div>
                       </div>
                     </motion.div>
@@ -334,6 +463,9 @@ export default function AICompanion() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+                
+                {/* Scroll anchor */}
+                <div ref={messagesEndRef} />
               </div>
             )}
           </div>

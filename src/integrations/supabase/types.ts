@@ -14,7 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      mend_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mend_signals: {
+        Row: {
+          context: string
+          created_at: string | null
+          id: string
+          intensity: string
+          message_id: string | null
+          primary_emotion: string
+          secondary_emotion: string | null
+          time_bucket: string
+          user_id: string
+        }
+        Insert: {
+          context: string
+          created_at?: string | null
+          id?: string
+          intensity: string
+          message_id?: string | null
+          primary_emotion: string
+          secondary_emotion?: string | null
+          time_bucket: string
+          user_id: string
+        }
+        Update: {
+          context?: string
+          created_at?: string | null
+          id?: string
+          intensity?: string
+          message_id?: string | null
+          primary_emotion?: string
+          secondary_emotion?: string | null
+          time_bucket?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mend_signals_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "mend_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
