@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Sparkles, Heart, Cloud, Moon, Lock } from "lucide-react";
+import { Send, Sparkles, Heart, Cloud, Moon, Lock, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
@@ -233,6 +233,34 @@ export default function AICompanion() {
     }
   }, [isAuthenticated, isDisabled, isLoading, messages, user]);
 
+  const handleClearConversation = useCallback(async () => {
+    if (messages.length === 0 || isLoading) return;
+
+    if (isAuthenticated && user?.id) {
+      try {
+        const { error } = await supabase
+          .from("mend_messages")
+          .delete()
+          .eq("user_id", user.id);
+
+        if (error) {
+          console.error("Error clearing messages:", error);
+          toast.error("Couldn't clear conversation");
+          return;
+        }
+      } catch (err) {
+        console.error("Error clearing conversation:", err);
+        toast.error("Something went wrong");
+        return;
+      }
+    }
+
+    setMessages([]);
+    setIsDisabled(false);
+    setShowRedirectMessage(false);
+    toast.success("Conversation cleared");
+  }, [isAuthenticated, isLoading, messages.length, user?.id]);
+
   const handlePromptClick = (prompt: string) => {
     if (!isDisabled && !isLoading) {
       setMessage(prompt);
@@ -259,6 +287,22 @@ export default function AICompanion() {
       <div className="min-h-[calc(100vh-4rem)] flex flex-col lg:flex-row">
         {/* Sidebar - Gentle Prompts */}
         <aside className="w-full lg:w-72 bg-muted/30 border-b lg:border-b-0 lg:border-r border-border p-4 lg:p-6">
+          {/* Clear conversation button */}
+          <AnimatePresence>
+            {messages.length > 0 && (
+              <motion.button
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                onClick={handleClearConversation}
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 mb-4 text-sm text-muted-foreground hover:text-foreground bg-card/50 hover:bg-card rounded-lg border border-border/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>New conversation</span>
+              </motion.button>
+            )}
+          </AnimatePresence>
           <h3 className="text-sm font-medium text-muted-foreground mb-4">Gentle prompts</h3>
           <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0">
             {gentlePrompts.map((prompt, index) => (
