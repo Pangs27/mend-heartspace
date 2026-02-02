@@ -3,6 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Sparkles, Heart, Cloud, Moon, Lock, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Layout } from "@/components/layout/Layout";
 import { useAuth } from "@/hooks/useAuth";
 import { streamChat } from "@/lib/streamChat";
@@ -33,6 +43,7 @@ export default function AICompanion() {
   const [isFetchingHistory, setIsFetchingHistory] = useState(true);
   const [showRedirectMessage, setShowRedirectMessage] = useState(false);
   const [isDisabled, setIsDisabled] = useState(false);
+  const [showClearDialog, setShowClearDialog] = useState(false);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -294,15 +305,36 @@ export default function AICompanion() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                onClick={handleClearConversation}
+                onClick={() => setShowClearDialog(true)}
                 disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 mb-4 text-sm text-muted-foreground hover:text-foreground bg-card/50 hover:bg-card rounded-lg border border-border/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 mb-4 text-sm text-muted-foreground hover:text-foreground bg-card/50 hover:bg-card rounded-lg border border-border/50 transition-colors active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>New conversation</span>
               </motion.button>
             )}
           </AnimatePresence>
+
+          {/* Clear conversation confirmation dialog */}
+          <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+            <AlertDialogContent className="max-w-sm rounded-2xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="font-serif">Start fresh?</AlertDialogTitle>
+                <AlertDialogDescription className="text-muted-foreground">
+                  This will clear your conversation history. Your patterns and insights will remain.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="gap-2 sm:gap-0">
+                <AlertDialogCancel className="rounded-xl">Keep talking</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleClearConversation}
+                  className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Clear conversation
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <h3 className="text-sm font-medium text-muted-foreground mb-4">Gentle prompts</h3>
           <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0">
             {gentlePrompts.map((prompt, index) => (
