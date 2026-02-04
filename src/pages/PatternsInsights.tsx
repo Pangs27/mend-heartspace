@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { Heart, Sparkles, MessageCircle, Clock, Loader2, Lightbulb, Calendar, ChevronDown } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
 import { Link } from "react-router-dom";
@@ -188,7 +189,75 @@ function LoadingState() {
   );
 }
 
+function MobileCarousel({ patterns }: { patterns: PatternCardType[] }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const swipeThreshold = 50;
+
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (info.offset.x < -swipeThreshold && currentIndex < patterns.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    } else if (info.offset.x > swipeThreshold && currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
+  };
+
+  return (
+    <div className="relative overflow-hidden -mx-4 px-4">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={currentIndex}
+          initial={{ opacity: 0, x: 50 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -50 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.2}
+          onDragEnd={handleDragEnd}
+          className="cursor-grab active:cursor-grabbing"
+        >
+          <InsightCard 
+            pattern={patterns[currentIndex]} 
+            index={0} 
+            isEmotion={patterns[currentIndex].type === "emotion"}
+          />
+        </motion.div>
+      </AnimatePresence>
+      
+      {/* Dot indicators */}
+      <div className="flex justify-center gap-2 mt-4">
+        {patterns.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrentIndex(index)}
+            className={`w-2 h-2 rounded-full transition-all duration-200 ${
+              index === currentIndex 
+                ? "bg-primary w-5" 
+                : "bg-muted-foreground/30"
+            }`}
+            aria-label={`Go to card ${index + 1}`}
+          />
+        ))}
+      </div>
+      
+      {/* Swipe hint */}
+      {patterns.length > 1 && currentIndex === 0 && (
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="text-center text-xs text-muted-foreground/60 mt-2"
+        >
+          Swipe to see more
+        </motion.p>
+      )}
+    </div>
+  );
+}
+
 function DynamicInsights({ patterns, timeline }: { patterns: PatternCardType[]; timeline: TimelineEntry[] }) {
+  const isMobile = useIsMobile();
+  
   // Sort patterns by priority (emotion first) and limit to 4
   const sortedPatterns = [...patterns]
     .sort((a, b) => (patternPriority[a.type] ?? 99) - (patternPriority[b.type] ?? 99))
@@ -196,16 +265,20 @@ function DynamicInsights({ patterns, timeline }: { patterns: PatternCardType[]; 
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {sortedPatterns.map((pattern, index) => (
-          <InsightCard 
-            key={pattern.type} 
-            pattern={pattern} 
-            index={index} 
-            isEmotion={pattern.type === "emotion"}
-          />
-        ))}
-      </div>
+      {isMobile ? (
+        <MobileCarousel patterns={sortedPatterns} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {sortedPatterns.map((pattern, index) => (
+            <InsightCard 
+              key={pattern.type} 
+              pattern={pattern} 
+              index={index} 
+              isEmotion={pattern.type === "emotion"}
+            />
+          ))}
+        </div>
+      )}
 
       {timeline.length >= 5 && <RecentMoments timeline={timeline} />}
     </>
