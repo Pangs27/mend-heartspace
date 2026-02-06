@@ -44,7 +44,7 @@ function StatusPill({ signalCount }: { signalCount: number }) {
   );
 }
 
-function InsightCard({ pattern, index, isEmotion }: { pattern: PatternCardType; index: number; isEmotion: boolean }) {
+function InsightCard({ pattern, index, isEmotion, isLocked }: { pattern: PatternCardType; index: number; isEmotion: boolean; isLocked: boolean }) {
   const Icon = patternIcons[pattern.type] || Sparkles;
 
   return (
@@ -52,31 +52,50 @@ function InsightCard({ pattern, index, isEmotion }: { pattern: PatternCardType; 
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.06 }}
-      whileHover={{ 
+      whileHover={!isLocked ? { 
         y: -2, 
         scale: 1.01,
         transition: { duration: 0.2, ease: "easeOut" }
-      }}
-      whileTap={{ scale: 0.995 }}
-      className={`rounded-2xl p-5 shadow-card cursor-default transition-shadow duration-200 hover:shadow-hover ${
-        isEmotion 
-          ? "bg-gradient-to-br from-card to-lilac-50/30 border border-lilac-100/50" 
-          : "bg-card"
+      } : undefined}
+      whileTap={!isLocked ? { scale: 0.995 } : undefined}
+      className={`rounded-2xl p-5 shadow-card cursor-default transition-shadow duration-200 ${
+        isLocked 
+          ? "bg-muted/30 border border-border/30" 
+          : isEmotion 
+            ? "bg-gradient-to-br from-card to-lilac-50/30 border border-lilac-100/50 hover:shadow-hover" 
+            : "bg-card hover:shadow-hover"
       }`}
     >
       <div className="flex items-start gap-3.5">
         <motion.div 
           className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-200 ${
-            isEmotion ? "bg-lilac-100/70" : "bg-muted/50"
+            isLocked ? "bg-muted/40" : isEmotion ? "bg-lilac-100/70" : "bg-muted/50"
           }`}
-          whileHover={{ scale: 1.05 }}
+          whileHover={!isLocked ? { scale: 1.05 } : undefined}
         >
-          <Icon className={`w-4 h-4 transition-colors duration-200 ${isEmotion ? "text-lilac-600" : "text-muted-foreground"}`} />
+          <Icon className={`w-4 h-4 transition-colors duration-200 ${
+            isLocked ? "text-muted-foreground/40" : isEmotion ? "text-lilac-600" : "text-muted-foreground"
+          }`} />
         </motion.div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-[15px] font-serif font-semibold text-foreground mb-1.5">{pattern.title}</h3>
-          <p className="text-sm text-foreground/75 leading-snug">{pattern.body}</p>
-          <p className="text-[11px] text-muted-foreground/70 mt-2.5">Based on recent reflections</p>
+          <h3 className={`text-[15px] font-serif font-semibold mb-1.5 ${
+            isLocked ? "text-muted-foreground/60" : "text-foreground"
+          }`}>{pattern.title}</h3>
+          {isLocked ? (
+            <>
+              <p className="text-sm text-muted-foreground/30 leading-snug blur-[3px] select-none" aria-hidden>
+                A gentle pattern is forming here...
+              </p>
+              <p className="text-[11px] text-muted-foreground/50 mt-2.5 italic">
+                This insight unlocks as your story grows.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-foreground/75 leading-snug">{pattern.body}</p>
+              <p className="text-[11px] text-muted-foreground/70 mt-2.5">Based on recent reflections</p>
+            </>
+          )}
         </div>
       </div>
     </motion.div>
@@ -189,7 +208,7 @@ function LoadingState() {
   );
 }
 
-function MobileCarousel({ patterns }: { patterns: PatternCardType[] }) {
+function MobileCarousel({ patterns }: { patterns: (PatternCardType & { isLocked: boolean })[] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const swipeThreshold = 50;
 
@@ -220,6 +239,7 @@ function MobileCarousel({ patterns }: { patterns: PatternCardType[] }) {
             pattern={patterns[currentIndex]} 
             index={0} 
             isEmotion={patterns[currentIndex].type === "emotion"}
+            isLocked={patterns[currentIndex].isLocked || false}
           />
         </motion.div>
       </AnimatePresence>
@@ -255,29 +275,89 @@ function MobileCarousel({ patterns }: { patterns: PatternCardType[] }) {
   );
 }
 
-function DynamicInsights({ patterns, timeline }: { patterns: PatternCardType[]; timeline: TimelineEntry[] }) {
+// Placeholder patterns for locked cards
+const lockedPlaceholders: PatternCardType[] = [
+  { type: "context", title: "Themes that repeat", body: "" },
+  { type: "weekly", title: "This week", body: "" },
+];
+
+function getDisplayPatterns(patterns: PatternCardType[], signalCount: number): (PatternCardType & { isLocked: boolean })[] {
+  // Sort patterns by priority (emotion first)
+  const sortedPatterns = [...patterns]
+    .sort((a, b) => (patternPriority[a.type] ?? 99) - (patternPriority[b.type] ?? 99));
+
+  // Build display list with lock states
+  const displayPatterns: (PatternCardType & { isLocked: boolean })[] = [];
+  
+  // Cards 1-2: always visible when >=3 signals
+  for (let i = 0; i < 2; i++) {
+    if (sortedPatterns[i]) {
+      displayPatterns.push({ ...sortedPatterns[i], isLocked: false });
+    }
+  }
+
+  // Card 3: locked until >=7 signals
+  if (sortedPatterns[2]) {
+    displayPatterns.push({ ...sortedPatterns[2], isLocked: signalCount < 7 });
+  } else if (displayPatterns.length >= 2) {
+    // Show placeholder if no real pattern exists yet
+    displayPatterns.push({ ...lockedPlaceholders[0], isLocked: true });
+  }
+
+  // Card 4: locked until >=12 signals
+  if (sortedPatterns[3]) {
+    displayPatterns.push({ ...sortedPatterns[3], isLocked: signalCount < 12 });
+  } else if (displayPatterns.length >= 3) {
+    // Show placeholder if no real pattern exists yet
+    displayPatterns.push({ ...lockedPlaceholders[1], isLocked: true });
+  }
+
+  return displayPatterns.slice(0, 4);
+}
+
+function DynamicInsights({ patterns, timeline, signalCount }: { patterns: PatternCardType[]; timeline: TimelineEntry[]; signalCount: number }) {
   const isMobile = useIsMobile();
   
-  // Sort patterns by priority (emotion first) and limit to 4
-  const sortedPatterns = [...patterns]
-    .sort((a, b) => (patternPriority[a.type] ?? 99) - (patternPriority[b.type] ?? 99))
-    .slice(0, 4);
+  const displayPatterns = getDisplayPatterns(patterns, signalCount);
+  const hasLockedCards = displayPatterns.some(p => p.isLocked);
 
   return (
     <>
       {isMobile ? (
-        <MobileCarousel patterns={sortedPatterns} />
+        <MobileCarousel patterns={displayPatterns} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {sortedPatterns.map((pattern, index) => (
+          {displayPatterns.map((pattern, index) => (
             <InsightCard 
-              key={pattern.type} 
+              key={pattern.type + index} 
               pattern={pattern} 
               index={index} 
               isEmotion={pattern.type === "emotion"}
+              isLocked={pattern.isLocked}
             />
           ))}
         </div>
+      )}
+
+      {/* CTA for locked cards */}
+      {hasLockedCards && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+          className="flex justify-center mt-6"
+        >
+          <Link to="/companion">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="text-sm text-muted-foreground hover:text-foreground border-border/50 hover:border-border"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Add a check-in
+            </Button>
+          </Link>
+        </motion.div>
       )}
 
       {timeline.length >= 5 && <RecentMoments timeline={timeline} />}
@@ -329,6 +409,7 @@ export default function PatternsInsights() {
             <DynamicInsights 
               patterns={data?.patterns || []} 
               timeline={data?.timeline || []} 
+              signalCount={signalCount}
             />
           )}
         </div>
