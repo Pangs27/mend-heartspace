@@ -156,9 +156,9 @@ export function MoodTimeline({ entries }: MoodTimelineProps) {
       transition={{ duration: 0.5, delay: 0.25 }}
       className="mt-12"
     >
-      {/* Section header - gentle, non-demanding */}
-      <p className="text-[11px] text-muted-foreground/50 uppercase tracking-widest mb-6 text-center">
-        Forming over time
+      {/* Ambient section label - observational, not instructional */}
+      <p className="text-[11px] text-muted-foreground/40 tracking-wide mb-6 text-center">
+        how things have been feeling
       </p>
       
       {/* Horizontal orb flow */}
@@ -175,33 +175,23 @@ export function MoodTimeline({ entries }: MoodTimelineProps) {
         ))}
       </div>
       
-      {/* Reflective phrase on hover - gentle fade */}
-      <div className="h-8 flex items-center justify-center">
+      {/* Reflective phrase on hover - ambient observation */}
+      <div className="h-6 flex items-center justify-center">
         <AnimatePresence mode="wait">
           {reflectivePhrase && (
             <motion.p
               key={reflectivePhrase}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.25 }}
-              className="text-sm text-muted-foreground/70 italic text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.7 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="text-[13px] text-muted-foreground/60 italic text-center"
             >
               {reflectivePhrase}
             </motion.p>
           )}
         </AnimatePresence>
       </div>
-      
-      {/* Subtle helper text */}
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        className="text-[10px] text-muted-foreground/40 text-center mt-2"
-      >
-        Touch to reflect
-      </motion.p>
     </motion.div>
   );
 }
