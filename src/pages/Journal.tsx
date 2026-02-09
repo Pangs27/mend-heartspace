@@ -88,7 +88,7 @@ export default function Journal() {
       setContent("");
       setSelectedPrompt(null);
       typingStartRef.current = null;
-    }, 3000);
+    }, 4000);
   }, [content]);
 
   const hasContent = content.trim().length > 0;
@@ -142,14 +142,17 @@ export default function Journal() {
                 ) : showAcknowledgment ? (
                   <motion.div
                     key="ack"
-                    initial={{ opacity: 0, y: 4 }}
+                    initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.4 }}
-                    className="text-center py-4"
+                    exit={{ opacity: 0, y: -4, transition: { duration: 0.6 } }}
+                    transition={{ duration: 0.5 }}
+                    className="text-center py-6"
                   >
-                    <p className="text-foreground/70 font-medium">
+                    <p className="text-foreground/70 font-medium mb-1.5">
                       Thank you for putting this down.
+                    </p>
+                    <p className="text-sm text-muted-foreground/50">
+                      It's saved. It's yours.
                     </p>
                   </motion.div>
                 ) : (
