@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { PenLine, Sparkles } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 
 const prompts = [
   "What's been weighing on you?",
@@ -13,11 +13,85 @@ const prompts = [
   "Something you wish you'd said",
 ];
 
+const ambientLines = [
+  "You're doing something good by being here.",
+  "There's no wrong way to say this.",
+  "This is yours. Take your time.",
+  "Whatever you're feeling is worth writing down.",
+];
+
 export default function Journal() {
+  const [isEditing, setIsEditing] = useState(false);
+  const [content, setContent] = useState("");
   const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null);
-  
-  // Placeholder: will be replaced with real data
+  const [showAmbient, setShowAmbient] = useState(false);
+  const [showAcknowledgment, setShowAcknowledgment] = useState(false);
+  const [ambientLine] = useState(() => ambientLines[Math.floor(Math.random() * ambientLines.length)]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const typingStartRef = useRef<number | null>(null);
+  const ambientTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ambientDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const recentEntries: unknown[] = [];
+
+  const activateEditor = useCallback((prompt?: string) => {
+    setIsEditing(true);
+    setShowAcknowledgment(false);
+    if (prompt) {
+      setSelectedPrompt(prompt);
+      setContent(prompt + "\n\n");
+    }
+    setTimeout(() => textareaRef.current?.focus(), 80);
+  }, []);
+
+  // Track typing duration for ambient guidance
+  useEffect(() => {
+    if (!isEditing || !content.trim()) {
+      typingStartRef.current = null;
+      setShowAmbient(false);
+      if (ambientTimerRef.current) clearTimeout(ambientTimerRef.current);
+      return;
+    }
+
+    if (!typingStartRef.current) {
+      typingStartRef.current = Date.now();
+    }
+
+    // Show ambient after ~17 seconds of writing
+    if (ambientTimerRef.current) clearTimeout(ambientTimerRef.current);
+    ambientTimerRef.current = setTimeout(() => {
+      if (typingStartRef.current && Date.now() - typingStartRef.current > 17000) {
+        setShowAmbient(true);
+        // Auto-dismiss after 6 seconds
+        ambientDismissRef.current = setTimeout(() => setShowAmbient(false), 6000);
+      }
+    }, 17000 - (Date.now() - (typingStartRef.current || Date.now())));
+
+    return () => {
+      if (ambientTimerRef.current) clearTimeout(ambientTimerRef.current);
+      if (ambientDismissRef.current) clearTimeout(ambientDismissRef.current);
+    };
+  }, [content, isEditing]);
+
+  const handleBlur = useCallback(() => {
+    if (!content.trim()) {
+      setIsEditing(false);
+      setSelectedPrompt(null);
+      return;
+    }
+    // Show acknowledgment, then reset
+    setShowAcknowledgment(true);
+    setShowAmbient(false);
+    setTimeout(() => {
+      setShowAcknowledgment(false);
+      setIsEditing(false);
+      setContent("");
+      setSelectedPrompt(null);
+      typingStartRef.current = null;
+    }, 3000);
+  }, [content]);
+
+  const hasContent = content.trim().length > 0;
 
   return (
     <Layout>
@@ -35,61 +109,124 @@ export default function Journal() {
           </p>
         </motion.div>
 
-        {/* Hero Card */}
+        {/* Editor / Idle Container */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
+          className="mb-8"
         >
-          <Card className="border-border/40 bg-card/50 backdrop-blur-sm shadow-soft mb-8">
-            <CardContent className="p-8 text-center">
-              <Button 
-                size="lg" 
-                className="gradient-lilac text-primary-foreground shadow-soft hover:shadow-hover transition-all duration-300 border-0 mb-4 gap-2"
-              >
-                <PenLine className="w-4 h-4" />
-                Write a check-in
-              </Button>
-              <p className="text-sm text-muted-foreground/60 mb-4">
-                No structure. No right way to do this.
-              </p>
-              <button 
-                className="text-sm text-primary/70 hover:text-primary transition-colors inline-flex items-center gap-1.5"
-                onClick={() => setSelectedPrompt(prompts[0])}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Use a prompt
-              </button>
+          <Card
+            className={`border-border/40 bg-card/50 backdrop-blur-sm shadow-soft transition-all duration-500 ${
+              !isEditing ? "cursor-pointer hover:shadow-hover hover:border-border/60" : ""
+            }`}
+            onClick={!isEditing ? () => activateEditor() : undefined}
+          >
+            <CardContent className="p-8">
+              <AnimatePresence mode="wait">
+                {!isEditing && !showAcknowledgment ? (
+                  <motion.div
+                    key="idle"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, transition: { duration: 0.2 } }}
+                    className="text-center"
+                  >
+                    <p className="text-foreground/60 font-medium mb-1">
+                      Start writing whenever you're ready
+                    </p>
+                    <p className="text-sm text-muted-foreground/50">
+                      No structure. No right way to do this.
+                    </p>
+                  </motion.div>
+                ) : showAcknowledgment ? (
+                  <motion.div
+                    key="ack"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="text-center py-4"
+                  >
+                    <p className="text-foreground/70 font-medium">
+                      Thank you for putting this down.
+                    </p>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="editor"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, transition: { duration: 0.2 } }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Textarea
+                      ref={textareaRef}
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      onBlur={handleBlur}
+                      placeholder="Write here…"
+                      className="min-h-[180px] resize-none border-none bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 text-foreground/80 placeholder:text-muted-foreground/30 text-base leading-relaxed p-0"
+                    />
+                    {/* Ambient guidance */}
+                    <AnimatePresence>
+                      {showAmbient && (
+                        <motion.p
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 0.5 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.8 }}
+                          className="text-xs text-muted-foreground mt-4"
+                        >
+                          {ambientLine}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </CardContent>
           </Card>
         </motion.div>
 
-        {/* Prompt Chips */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="mb-12"
-        >
-          <div className="flex flex-wrap justify-center gap-2">
-            {prompts.map((prompt, index) => (
-              <motion.button
-                key={prompt}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, delay: 0.25 + index * 0.05 }}
-                onClick={() => setSelectedPrompt(prompt)}
-                className={`px-4 py-2 text-sm rounded-full border transition-all duration-200 ${
-                  selectedPrompt === prompt
-                    ? "bg-primary/10 border-primary/30 text-primary"
-                    : "bg-muted/30 border-border/40 text-muted-foreground/70 hover:bg-muted/50 hover:text-foreground/80"
-                }`}
-              >
-                {prompt}
-              </motion.button>
-            ))}
-          </div>
-        </motion.div>
+        {/* Prompt Chips — only in idle state */}
+        <AnimatePresence>
+          {!isEditing && !showAcknowledgment && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, y: -6, transition: { duration: 0.25 } }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="mb-12"
+            >
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <Sparkles className="w-3.5 h-3.5 text-primary/50" />
+                <span className="text-xs text-muted-foreground/50">or try a prompt</span>
+              </div>
+              <div className="flex flex-wrap justify-center gap-2">
+                {prompts.map((prompt, index) => (
+                  <motion.button
+                    key={prompt}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3, delay: 0.25 + index * 0.05 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      activateEditor(prompt);
+                    }}
+                    className={`px-4 py-2 text-sm rounded-full border transition-all duration-200 ${
+                      selectedPrompt === prompt
+                        ? "bg-primary/10 border-primary/30 text-primary"
+                        : "bg-muted/30 border-border/40 text-muted-foreground/70 hover:bg-muted/50 hover:text-foreground/80"
+                    }`}
+                  >
+                    {prompt}
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Recent Entries Section */}
         <motion.div
@@ -100,7 +237,7 @@ export default function Journal() {
           <p className="text-[11px] text-muted-foreground/40 tracking-wide mb-4 text-center">
             recent entries
           </p>
-          
+
           {recentEntries.length === 0 ? (
             <Card className="border-border/30 bg-muted/20 shadow-none">
               <CardContent className="p-10 text-center">
