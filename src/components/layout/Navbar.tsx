@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Heart, LogOut, User, Sun, MessageCircle, TrendingUp, Clock, LucideIcon } from "lucide-react";
+import { Menu, X, Heart, LogOut, User, Sun, MessageCircle, BookOpen, TrendingUp, Clock, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -22,6 +22,7 @@ const publicNavLinks: NavLink[] = [
 const protectedNavLinks: NavLink[] = [
   { name: "Today", path: "/app", icon: Sun },
   { name: "Companion", path: "/companion", icon: MessageCircle },
+  { name: "Journal", path: "/journal", icon: BookOpen },
   { name: "Patterns", path: "/patterns", icon: TrendingUp },
   { name: "Micro-sessions", path: "/sessions", icon: Clock },
 ];

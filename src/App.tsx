@@ -18,6 +18,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import AuthCallback from "./pages/AuthCallback";
 import Dashboard from "./pages/Dashboard";
 import CheckIn from "./pages/CheckIn";
+import Journal from "./pages/Journal";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/app" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/checkin" element={<ProtectedRoute><CheckIn /></ProtectedRoute>} />
             <Route path="/companion" element={<ProtectedRoute><AICompanion /></ProtectedRoute>} />
+            <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
             <Route path="/patterns" element={<ProtectedRoute><PatternsInsights /></ProtectedRoute>} />
             <Route path="/sessions" element={<ProtectedRoute><MicroSessions /></ProtectedRoute>} />
             
