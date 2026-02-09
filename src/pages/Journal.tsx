@@ -4,6 +4,11 @@ import { Sparkles } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AMBIENT_LINES,
+  ACKNOWLEDGMENT,
+  AMBIENT_TIMING,
+} from "@/lib/journalGuardrails";
 
 const prompts = [
   "What's been weighing on you?",
@@ -13,20 +18,13 @@ const prompts = [
   "Something you wish you'd said",
 ];
 
-const ambientLines = [
-  "You're doing something good by being here.",
-  "There's no wrong way to say this.",
-  "This is yours. Take your time.",
-  "Whatever you're feeling is worth writing down.",
-];
-
 export default function Journal() {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState("");
   const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null);
   const [showAmbient, setShowAmbient] = useState(false);
   const [showAcknowledgment, setShowAcknowledgment] = useState(false);
-  const [ambientLine] = useState(() => ambientLines[Math.floor(Math.random() * ambientLines.length)]);
+  const [ambientLine] = useState(() => AMBIENT_LINES[Math.floor(Math.random() * AMBIENT_LINES.length)]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingStartRef = useRef<number | null>(null);
   const ambientTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,12 +58,11 @@ export default function Journal() {
     // Show ambient after ~17 seconds of writing
     if (ambientTimerRef.current) clearTimeout(ambientTimerRef.current);
     ambientTimerRef.current = setTimeout(() => {
-      if (typingStartRef.current && Date.now() - typingStartRef.current > 17000) {
+      if (typingStartRef.current && Date.now() - typingStartRef.current > AMBIENT_TIMING.delayMs) {
         setShowAmbient(true);
-        // Auto-dismiss after 6 seconds
-        ambientDismissRef.current = setTimeout(() => setShowAmbient(false), 6000);
+        ambientDismissRef.current = setTimeout(() => setShowAmbient(false), AMBIENT_TIMING.dismissMs);
       }
-    }, 17000 - (Date.now() - (typingStartRef.current || Date.now())));
+    }, AMBIENT_TIMING.delayMs - (Date.now() - (typingStartRef.current || Date.now())));
 
     return () => {
       if (ambientTimerRef.current) clearTimeout(ambientTimerRef.current);
@@ -88,7 +85,7 @@ export default function Journal() {
       setContent("");
       setSelectedPrompt(null);
       typingStartRef.current = null;
-    }, 4000);
+    }, ACKNOWLEDGMENT.displayDuration);
   }, [content]);
 
   const hasContent = content.trim().length > 0;
@@ -149,10 +146,10 @@ export default function Journal() {
                     className="text-center py-6"
                   >
                     <p className="text-foreground/70 font-medium mb-1.5">
-                      Thank you for putting this down.
+                      {ACKNOWLEDGMENT.primary}
                     </p>
                     <p className="text-sm text-muted-foreground/50">
-                      It's saved. It's yours.
+                      {ACKNOWLEDGMENT.secondary}
                     </p>
                   </motion.div>
                 ) : (
