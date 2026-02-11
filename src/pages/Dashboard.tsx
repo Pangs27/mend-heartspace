@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
@@ -7,13 +8,15 @@ import {
   Clock, 
   Flame,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Heart
 } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const placeholderPatterns = [
   "Overthinking",
@@ -23,10 +26,10 @@ const placeholderPatterns = [
   "Social drain"
 ];
 
-const placeholderMicroSessions = [
-  { title: "Reset: 60-second breathing", icon: "🌬️" },
-  { title: "Unpack a moment", icon: "📦" },
-  { title: "Let go of one thought", icon: "🍃" },
+const deepenItems = [
+  { title: "Prepare Reflection Summary", helper: "Bring a short, editable summary of your recent reflections.", icon: "✨" },
+  { title: "Explore suggested themes", helper: "A few themes showing up recently, gently surfaced.", icon: "🌿" },
+  { title: "Browse professionals", helper: "See options when you feel ready.", icon: "🤝" },
 ];
 
 export default function Dashboard() {
@@ -34,6 +37,37 @@ export default function Dashboard() {
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || 
                    user?.email?.split("@")[0] || 
                    "there";
+
+  const [signalLine, setSignalLine] = useState<string>("This space is here whenever you feel ready.");
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchTopSignals = async () => {
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+      const { data } = await supabase
+        .from("mend_signals")
+        .select("context")
+        .eq("user_id", user.id)
+        .gte("created_at", fourteenDaysAgo.toISOString())
+        .order("created_at", { ascending: false });
+
+      if (data && data.length >= 3) {
+        const freq = new Map<string, number>();
+        for (const s of data) {
+          const t = s.context.toLowerCase().trim();
+          freq.set(t, (freq.get(t) || 0) + 1);
+        }
+        const top = [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t]) => t);
+        if (top.length >= 2) {
+          setSignalLine(`Recently, ${top[0]} and ${top[1]} have appeared in your reflections.`);
+        } else if (top.length === 1) {
+          setSignalLine(`Recently, ${top[0]} has appeared in your reflections.`);
+        }
+      }
+    };
+    fetchTopSignals();
+  }, [user]);
 
   return (
     <Layout>
@@ -172,7 +206,7 @@ export default function Dashboard() {
             </Card>
           </motion.div>
 
-          {/* Micro-Sessions */}
+          {/* Deepen Your Reflection */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -181,24 +215,32 @@ export default function Dashboard() {
             <Card className="bg-card/80 backdrop-blur-sm border-border/50 shadow-soft rounded-2xl">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg font-serif font-medium flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-mint-600" />
-                  Micro-sessions
-                  <span className="text-xs font-normal text-muted-foreground">(2–5 min)</span>
+                  <Heart className="w-4 h-4 text-primary" />
+                  Deepen your reflection
                 </CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  When you feel ready, sit with someone trained to listen.
+                </p>
               </CardHeader>
               <CardContent className="pt-0 space-y-2">
-                {placeholderMicroSessions.map((session, index) => (
+                <p className="text-xs text-muted-foreground/70 italic mb-3">
+                  {signalLine}
+                </p>
+                {deepenItems.map((item, index) => (
                   <div 
                     key={index}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                    className="flex items-start gap-3 p-3 rounded-xl bg-muted/30"
                   >
-                    <span className="text-lg">{session.icon}</span>
-                    <span className="text-sm text-foreground">{session.title}</span>
+                    <span className="text-lg mt-0.5">{item.icon}</span>
+                    <div>
+                      <span className="text-sm font-medium text-foreground">{item.title}</span>
+                      <p className="text-xs text-muted-foreground mt-0.5">{item.helper}</p>
+                    </div>
                   </div>
                 ))}
                 <Link to="/sessions" className="block pt-2">
                   <Button variant="ghost" className="w-full text-muted-foreground hover:text-foreground">
-                    Browse micro-sessions
+                    Open Deepen Your Reflection
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
