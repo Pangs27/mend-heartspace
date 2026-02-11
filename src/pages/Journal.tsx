@@ -9,6 +9,10 @@ import {
   ACKNOWLEDGMENT,
   AMBIENT_TIMING,
 } from "@/lib/journalGuardrails";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { JournalEntryTile } from "@/components/journal/JournalEntryTile";
+import { JournalEntryModal } from "@/components/journal/JournalEntryModal";
 
 const prompts = [
   "What's been weighing on you?",
@@ -18,19 +22,34 @@ const prompts = [
   "Something you wish you'd said",
 ];
 
+type JournalEntry = { id: string; content: string; created_at: string; prompt: string | null };
+
 export default function Journal() {
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState("");
   const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null);
   const [showAmbient, setShowAmbient] = useState(false);
   const [showAcknowledgment, setShowAcknowledgment] = useState(false);
   const [ambientLine] = useState(() => AMBIENT_LINES[Math.floor(Math.random() * AMBIENT_LINES.length)]);
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [viewEntry, setViewEntry] = useState<JournalEntry | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingStartRef = useRef<number | null>(null);
   const ambientTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ambientDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const recentEntries: unknown[] = [];
+  const fetchEntries = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("journal_entries")
+      .select("id, content, created_at, prompt")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (data) setEntries(data);
+  }, [user]);
+
+  useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
   const activateEditor = useCallback((prompt?: string) => {
     setIsEditing(true);
@@ -70,11 +89,19 @@ export default function Journal() {
     };
   }, [content, isEditing]);
 
-  const handleBlur = useCallback(() => {
+  const handleBlur = useCallback(async () => {
     if (!content.trim()) {
       setIsEditing(false);
       setSelectedPrompt(null);
       return;
+    }
+    // Save entry
+    if (user) {
+      await supabase.from("journal_entries").insert({
+        user_id: user.id,
+        content: content.trim(),
+        prompt: selectedPrompt,
+      });
     }
     // Show acknowledgment, then reset
     setShowAcknowledgment(true);
@@ -85,8 +112,9 @@ export default function Journal() {
       setContent("");
       setSelectedPrompt(null);
       typingStartRef.current = null;
+      fetchEntries();
     }, ACKNOWLEDGMENT.displayDuration);
-  }, [content]);
+  }, [content, user, selectedPrompt, fetchEntries]);
 
   const hasContent = content.trim().length > 0;
 
@@ -238,23 +266,46 @@ export default function Journal() {
             recent entries
           </p>
 
-          {recentEntries.length === 0 ? (
-            <Card className="border-border/30 bg-muted/20 shadow-none">
-              <CardContent className="p-10 text-center">
-                <p className="text-foreground/70 font-medium mb-2">
-                  This space stays quiet until you use it.
-                </p>
-                <p className="text-sm text-muted-foreground/50">
-                  You don't need to write often. Just when it helps.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {/* Placeholder for future entries */}
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            {entries.length === 0 ? (
+              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <Card className="border-border/30 bg-muted/20 shadow-none">
+                  <CardContent className="p-10 text-center">
+                    <p className="text-foreground/70 font-medium mb-2">
+                      This space stays quiet until you use it.
+                    </p>
+                    <p className="text-sm text-muted-foreground/50">
+                      You don't need to write often. Just when it helps.
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="grid"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+              >
+                {entries.map((entry, index) => (
+                  <JournalEntryTile
+                    key={entry.id}
+                    entry={entry}
+                    index={index}
+                    onClick={() => setViewEntry(entry)}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
+
+        <JournalEntryModal
+          entry={viewEntry}
+          open={!!viewEntry}
+          onOpenChange={(open) => { if (!open) setViewEntry(null); }}
+        />
       </div>
     </Layout>
   );
