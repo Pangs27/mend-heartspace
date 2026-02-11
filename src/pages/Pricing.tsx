@@ -25,7 +25,7 @@ const plans = [
       "Advanced pattern intelligence",
       "Weekly reflection reports",
       "Priority community support",
-      "1 micro-session credit/month",
+      "1 reflection session credit/month",
     ],
     highlighted: true,
     ctaText: "Upgrade to Plus",
@@ -35,7 +35,7 @@ const plans = [
     price: "₹299+",
     description: "Flexible options for extra support",
     features: [
-      "Additional micro-sessions",
+      "Additional reflection sessions",
       "Weekly expert chat support",
       "Group therapy sessions",
       "Personalized wellness plans",
@@ -103,7 +103,7 @@ export default function Pricing() {
                   a: "Yes! Our free plan includes unlimited AI conversations and basic features. Upgrade anytime for deeper insights.",
                 },
                 {
-                  q: "What are micro-sessions?",
+                  q: "What are reflection sessions?",
                   a: "20-minute focused sessions with verified mental health professionals. Perfect for specific issues or check-ins.",
                 },
                 {

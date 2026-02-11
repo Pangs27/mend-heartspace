@@ -42,7 +42,7 @@ export default function HowMendHelps() {
             <FeatureCard icon={Sparkles} title="Emotional Mirror" description="Express yourself freely. Our AI companion reflects back your emotions with clarity and understanding, helping you see what you're truly feeling." variant="lilac" delay={0} />
             <FeatureCard icon={Activity} title="Pattern Recognition" description="Over time, MEND identifies emotional patterns — recurring triggers, mood cycles, and behavioral tendencies that shape your wellbeing." variant="mint" delay={0.1} />
             <FeatureCard icon={TrendingUp} title="Insights Dashboard" description="Visual representations of your emotional journey. Track progress, celebrate wins, and understand your growth over weeks and months." variant="peach" delay={0.2} />
-            <FeatureCard icon={Users} title="Expert Support" description="When you need human guidance, connect with verified mental health professionals for focused 20-minute micro-sessions." variant="lilac" delay={0.3} />
+            <FeatureCard icon={Users} title="Expert Support" description="When you need human guidance, connect with verified mental health professionals for focused 20-minute reflection sessions." variant="lilac" delay={0.3} />
             <FeatureCard icon={MessageCircle} title="Community Circles" description="Join anonymous support circles with others who understand. Share experiences, find connection, and never feel alone." variant="mint" delay={0.4} />
             <FeatureCard icon={Clock} title="Always Available" description="MEND is here 24/7. Whether it's 3 AM anxiety or lunchtime overwhelm, support is just a message away." variant="peach" delay={0.5} />
           </div>
