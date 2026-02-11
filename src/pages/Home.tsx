@@ -108,7 +108,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
             <FeatureCard icon={Sparkles} title="Emotional Mirror" description="Reflect on your feelings through gentle, guided conversations. MEND listens without judgment and helps you understand what you're experiencing." variant="lilac" delay={0} />
             <FeatureCard icon={Activity} title="Pattern Intelligence" description="Discover emotional patterns over time. Understand your triggers, track your moods, and gain insights that empower positive change." variant="mint" delay={0.1} />
-            <FeatureCard icon={Users} title="Human Support" description="Connect with verified mental health experts for focused micro-sessions when you need professional guidance and support." variant="peach" delay={0.2} />
+            <FeatureCard icon={Users} title="Human Support" description="Connect with verified mental health experts for focused reflection sessions when you need professional guidance and support." variant="peach" delay={0.2} />
           </div>
         </div>
       </section>

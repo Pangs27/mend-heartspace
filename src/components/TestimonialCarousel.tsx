@@ -9,7 +9,7 @@ const testimonials = [
     context: "Mumbai",
   },
   {
-    quote: "The micro-sessions are perfect for my busy schedule. 20 minutes that genuinely help me reset.",
+    quote: "The reflection sessions are perfect for my busy schedule. 20 minutes that genuinely help me reset.",
     author: "Arjun M.",
     context: "Bengaluru",
   },
