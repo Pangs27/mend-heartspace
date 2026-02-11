@@ -63,9 +63,9 @@ function generateGraph(nodeCount: number): { nodes: Node[]; edges: Edge[] } {
 
 // Pulse timing per baseline state
 const pulseConfig: Record<BaselineState, { duration: number; ease: string }> = {
-  calm: { duration: 4, ease: "easeInOut" },
-  elevated: { duration: 2.8, ease: "easeInOut" },
-  fluctuating: { duration: 2, ease: "linear" },
+  calm: { duration: 5, ease: "easeInOut" },
+  elevated: { duration: 3, ease: "easeInOut" },
+  fluctuating: { duration: 3.2, ease: "easeInOut" },
   high: { duration: 1.8, ease: "easeInOut" },
 };
 
@@ -80,7 +80,7 @@ export function BrainVisualization({
   highlightCluster,
   isEmpty = false,
 }: BrainVisualizationProps) {
-  const nodeCount = isEmpty ? 10 : 32;
+  const nodeCount = isEmpty ? 9 : 32;
   const { nodes, edges } = useMemo(() => generateGraph(nodeCount), [nodeCount]);
   const pulse = pulseConfig[baselineState];
 
@@ -170,7 +170,7 @@ export function BrainVisualization({
           );
         })}
 
-        {/* Glow filter for highlight cluster */}
+        {/* Glow filter for highlight cluster — 10-15% brighter */}
         {!isEmpty && (
           <>
             {nodes
@@ -180,9 +180,9 @@ export function BrainVisualization({
                   key={`glow-${node.id}`}
                   cx={node.x}
                   cy={node.y}
-                  r={2.5}
+                  r={2.8}
                   fill="hsl(270 45% 80%)"
-                  animate={{ opacity: [0, 0.15, 0] }}
+                  animate={{ opacity: [0, 0.18, 0] }}
                   transition={{
                     duration: pulse.duration * 1.2,
                     ease: "easeInOut",
@@ -194,6 +194,13 @@ export function BrainVisualization({
           </>
         )}
       </svg>
+
+      {/* Caption */}
+      <p className="text-center text-[11px] text-muted-foreground/50 mt-2 tracking-wide">
+        {isEmpty
+          ? "Your patterns will become clearer as you share more."
+          : "Reflecting your recent emotional rhythm."}
+      </p>
     </motion.div>
   );
 }

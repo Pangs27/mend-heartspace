@@ -376,6 +376,9 @@ export default function PatternsInsights() {
               <p className="text-sm text-muted-foreground/70">
                 Small patterns, over time. Nothing rushed.
               </p>
+              <p className="text-[11px] text-muted-foreground/40 mt-1">
+                Updated from your recent reflections.
+              </p>
             </div>
           </motion.header>
 
@@ -400,9 +403,6 @@ export default function PatternsInsights() {
                   highlightCluster={0}
                   isEmpty
                 />
-                <p className="text-center text-sm text-muted-foreground/60 mt-2">
-                  Your patterns are still forming. Share a little more to make this clearer.
-                </p>
               </motion.div>
               <EmptyState heading={emptyHeading} body={emptyBody} ctaText={startCTA} />
             </div>

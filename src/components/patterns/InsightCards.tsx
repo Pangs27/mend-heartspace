@@ -7,19 +7,19 @@ import { getThemeLabel } from "@/lib/patternSnapshot";
 const baselineCopy: Record<BaselineState, { title: string; body: string }> = {
   calm: {
     title: "A quieter pace",
-    body: "Things have felt more settled recently. Your emotional rhythm has been gentle.",
+    body: "Over the past two weeks, things have felt more settled. Your emotional rhythm has been gentle.",
   },
   elevated: {
     title: "A bit more active",
-    body: "There's been more emotional movement lately — not bad, just present.",
+    body: "Recently, there's been more emotional movement — not bad, just present. It shows you're processing.",
   },
   fluctuating: {
     title: "Some ups and downs",
-    body: "Your feelings have been shifting more than usual. That's a natural part of processing.",
+    body: "Over the past two weeks, your feelings have been shifting more than usual. That's a natural part of processing.",
   },
   high: {
     title: "A lot going on",
-    body: "There's been a lot of emotional energy recently. It's okay to feel it all.",
+    body: "Recently, there's been a lot of emotional energy. It's okay to feel it all — you've been carrying a lot.",
   },
 };
 
@@ -33,7 +33,7 @@ function getThemeCopy(themes: string[]): { title: string; body: string } {
   const top = getThemeLabel(themes[0]);
   return {
     title: `Around ${top}`,
-    body: `A lot of your recent reflections seem to circle back to ${top}. It might be worth sitting with that gently.`,
+    body: `Over the past two weeks, a lot of your reflections seem to circle back to ${top}. It might be worth sitting with that gently.`,
   };
 }
 
@@ -41,12 +41,12 @@ function getStabilizerCopy(recentWeek: number, priorWeek: number): { title: stri
   if (recentWeek > priorWeek && recentWeek >= 3) {
     return {
       title: "Writing seems to be helping",
-      body: "You've been reflecting more this week. That kind of consistency can quietly make a difference.",
+      body: "Compared to earlier entries, you've been reflecting more this week. That kind of consistency can quietly make a difference.",
     };
   }
   return {
     title: "Small moments matter",
-    body: "Even a few minutes of reflection can help things feel a little clearer over time.",
+    body: "Recently, even a few minutes of reflection can help things feel a little clearer over time.",
   };
 }
 
