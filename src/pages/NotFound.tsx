@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SOSModal } from "@/components/ui/SOSModal";
 
 export default function NotFound() {
   const [sosOpen, setSosOpen] = useState(false);
@@ -40,8 +39,6 @@ export default function NotFound() {
           </Button>
         </div>
       </motion.div>
-
-      <SOSModal isOpen={sosOpen} onClose={() => setSosOpen(false)} />
     </div>
   );
 }
