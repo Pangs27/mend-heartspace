@@ -22,6 +22,8 @@ import { streamChat } from "@/lib/streamChat";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getTimeDivider } from "@/lib/conversationDividers";
+import { useReflectionBubble } from "@/hooks/useReflectionBubble";
+import { ReflectionBubble } from "@/components/chat/ReflectionBubble";
 
 const gentlePrompts = [
   { label: "Reflect on today", icon: Sparkles },
@@ -54,6 +56,9 @@ export default function AICompanion() {
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [hasInitiallyScrolled, setHasInitiallyScrolled] = useState(false);
+  const [reflectionAttachedTo, setReflectionAttachedTo] = useState<string | null>(null);
+
+  const { reflectionMessage, evaluate: evaluateReflection, reset: resetReflection } = useReflectionBubble(user?.id);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -268,6 +273,16 @@ export default function AICompanion() {
           }
 
           setIsLoading(false);
+
+          // Evaluate reflection bubble after assistant reply
+          const currentIndex = messages.length + 2; // user + assistant added
+          evaluateReflection(
+            [...messages, userMessage, { role: "assistant", content: assistantContent }].map(m => ({ role: m.role, content: m.content })),
+            currentIndex
+          ).then(() => {
+            // If reflection triggered, attach to this assistant message
+            setReflectionAttachedTo(assistantMsgData?.id || tempAssistantId);
+          });
         },
         onError: (error) => {
           toast.error(error);
@@ -306,8 +321,10 @@ export default function AICompanion() {
     setMessages([]);
     setIsDisabled(false);
     setShowRedirectMessage(false);
+    resetReflection();
+    setReflectionAttachedTo(null);
     toast.success("Conversation cleared");
-  }, [isAuthenticated, isLoading, messages.length, user?.id]);
+  }, [isAuthenticated, isLoading, messages.length, user?.id, resetReflection]);
 
   const handlePromptClick = (prompt: string) => {
     if (!isDisabled && !isLoading) {
@@ -530,6 +547,12 @@ export default function AICompanion() {
                           <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                         </div>
                       </motion.div>
+                      {/* Reflection bubble attached to this assistant message */}
+                      {reflectionMessage && reflectionAttachedTo === msg.id && msg.role === "assistant" && (
+                        <div className="mt-1.5">
+                          <ReflectionBubble message={reflectionMessage} />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </AnimatePresence>
