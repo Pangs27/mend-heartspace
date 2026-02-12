@@ -28,7 +28,8 @@ export function JournalEntryTile({ entry, index, onClick }: JournalEntryTileProp
       className="w-full text-left rounded-[1.125rem] border border-border/40 bg-card/60 backdrop-blur-sm p-4 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-hover hover:border-border/60 tap-scale-sm"
     >
       <p className="text-xs text-muted-foreground/50 mb-2">{dateLabel}</p>
-      <p className="text-sm text-foreground/70 leading-relaxed line-clamp-2">
+      <p className="text-sm text-foreground/70 leading-relaxed line-clamp-2 min-h-[2.75rem]">
+
         {preview}
       </p>
       <div className="flex justify-end mt-3">
