@@ -58,7 +58,7 @@ export default function AICompanion() {
   const [hasInitiallyScrolled, setHasInitiallyScrolled] = useState(false);
   const [reflectionAttachedTo, setReflectionAttachedTo] = useState<string | null>(null);
 
-  const { reflectionMessage, evaluate: evaluateReflection, reset: resetReflection } = useReflectionBubble(user?.id);
+  const { reflectionMessage, evaluate: evaluateReflection, reset: resetReflection, suppressToday } = useReflectionBubble(user?.id);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -550,7 +550,7 @@ export default function AICompanion() {
                       {/* Reflection bubble attached to this assistant message */}
                       {reflectionMessage && reflectionAttachedTo === msg.id && msg.role === "assistant" && (
                         <div className="mt-1.5">
-                          <ReflectionBubble message={reflectionMessage} />
+                          <ReflectionBubble message={reflectionMessage} onSuppressToday={suppressToday} />
                         </div>
                       )}
                     </div>
