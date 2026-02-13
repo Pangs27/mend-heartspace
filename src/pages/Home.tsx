@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
 import { useMemo } from "react";
-import OrbitalHero from "@/components/hero/OrbitalHero";
 
 /* ── tiny inline neural cluster (background decoration) ── */
 function NeuralCluster() {
@@ -56,8 +55,49 @@ const Reveal = ({ children, delay = 0, className = "" }: { children: React.React
 export default function Home() {
   return (
     <Layout>
-      {/* ─── SECTION 1 — Orbital Hero ─── */}
-      <OrbitalHero />
+      {/* ─── SECTION 1 — Hero ─── */}
+      <section className="relative min-h-[85vh] flex items-center overflow-hidden gradient-hero">
+        {/* Background neural cluster */}
+        <div className="absolute inset-0 pointer-events-none opacity-30">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] md:w-[700px] md:h-[700px]">
+            <NeuralCluster />
+          </div>
+        </div>
+        {/* Soft gradient orbs */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-20 left-10 w-72 h-72 rounded-full bg-lilac-200/20 blur-3xl animate-float" />
+          <div className="absolute bottom-16 right-12 w-80 h-80 rounded-full bg-mint-200/20 blur-3xl animate-float" style={{ animationDelay: "1.5s" }} />
+        </div>
+
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="max-w-2xl mx-auto text-center">
+            <Reveal>
+              <h1 className="text-4xl md:text-5xl lg:text-[3.4rem] font-serif font-medium text-foreground leading-snug text-balance">
+                Some thoughts don't need fixing.
+                <br className="hidden sm:block" />
+                They need understanding.
+              </h1>
+            </Reveal>
+            <Reveal delay={0.15}>
+              <p className="mt-6 text-lg md:text-xl text-muted-foreground leading-relaxed text-balance max-w-xl mx-auto">
+                A private space to reflect, notice patterns, and make sense of what you're carrying.
+              </p>
+            </Reveal>
+            <Reveal delay={0.3}>
+              <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Link to="/companion">
+                  <Button size="lg" className="gradient-lilac text-primary-foreground border-0 shadow-soft hover:shadow-hover transition-all duration-300 px-8">
+                    Begin Reflecting
+                  </Button>
+                </Link>
+                <Link to="/how-mend-helps" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  See how it works
+                </Link>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
 
       {/* ─── SECTION 2 — The Experience ─── */}
       <section className="py-28 lg:py-36 bg-background">
@@ -71,11 +111,13 @@ export default function Home() {
           {/* Step 1 — Chat snippet */}
           <Reveal delay={0.05} className="mb-16 lg:mb-20">
             <div className="space-y-4 max-w-md mx-auto">
+              {/* User bubble */}
               <div className="flex justify-end">
                 <div className="bg-lilac-100 text-foreground rounded-2xl rounded-br-md px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-soft">
                   I've been feeling overwhelmed at work lately.
                 </div>
               </div>
+              {/* MEND reply */}
               <div className="flex justify-start">
                 <div className="bg-muted text-foreground rounded-2xl rounded-bl-md px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-soft">
                   That sounds heavy. What part of work feels the most draining right now?
