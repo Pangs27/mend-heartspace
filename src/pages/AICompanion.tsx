@@ -24,13 +24,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { getTimeDivider } from "@/lib/conversationDividers";
 import { useReflectionBubble } from "@/hooks/useReflectionBubble";
 import { ReflectionBubble } from "@/components/chat/ReflectionBubble";
+import { useCompanionMode } from "@/hooks/useCompanionMode";
+import { ModeSelector } from "@/components/chat/ModeSelector";
+import { computeUserState, buildDynamicPrompts } from "@/lib/userState";
 
-const gentlePrompts = [
-  { label: "Reflect on today", icon: Sparkles },
-  { label: "Something that's been sitting with me", icon: Cloud },
-  { label: "I feel unsettled and don't know why", icon: Moon },
-  { label: "I just need to say this out loud", icon: Heart },
-];
+const ICON_MAP = {
+  sparkles: Sparkles,
+  cloud: Cloud,
+  moon: Moon,
+  heart: Heart,
+} as const;
 
 interface ChatMessage {
   id: string;
@@ -44,6 +47,7 @@ export default function AICompanion() {
   const { isAuthenticated, user } = useAuth();
   const { data: signalsData } = usePatternSignals();
   const phase = useUserPhase(signalsData?.signals);
+  const { mode, setMode } = useCompanionMode(user?.id);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
@@ -60,11 +64,28 @@ export default function AICompanion() {
 
   const { reflectionMessage, evaluate: evaluateReflection, reset: resetReflection, suppressToday } = useReflectionBubble(user?.id);
 
+  // Compute user state from signals
+  const userState = useMemo(() => {
+    return computeUserState(signalsData?.signals || []);
+  }, [signalsData?.signals]);
+
+  // Dynamic gentle prompts
+  const dynamicPrompts = useMemo(() => {
+    if (!isAuthenticated || !userState) {
+      return [
+        { label: "Reflect on today", icon: "sparkles" as const },
+        { label: "Something that's been sitting with me", icon: "cloud" as const },
+        { label: "I feel unsettled and don't know why", icon: "moon" as const },
+        { label: "I just need to say this out loud", icon: "heart" as const },
+      ];
+    }
+    return buildDynamicPrompts(userState);
+  }, [isAuthenticated, userState]);
+
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
-  // Track scroll position to decide auto-scroll
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -73,10 +94,8 @@ export default function AICompanion() {
     setIsNearBottom(nearBottom);
   }, []);
 
-  // Initial scroll to bottom when history loads
   useEffect(() => {
     if (!isFetchingHistory && messages.length > 0 && !hasInitiallyScrolled) {
-      // Use requestAnimationFrame to ensure DOM has rendered
       requestAnimationFrame(() => {
         scrollToBottom("auto");
         setHasInitiallyScrolled(true);
@@ -84,14 +103,13 @@ export default function AICompanion() {
     }
   }, [isFetchingHistory, messages.length, hasInitiallyScrolled, scrollToBottom]);
 
-  // Auto-scroll on new messages only if near bottom
   useEffect(() => {
     if (hasInitiallyScrolled && isNearBottom) {
       scrollToBottom("smooth");
     }
   }, [messages, hasInitiallyScrolled, isNearBottom, scrollToBottom]);
 
-  // Fetch chat history on mount for authenticated users
+  // Fetch chat history
   useEffect(() => {
     const fetchChatHistory = async () => {
       if (!isAuthenticated || !user?.id) {
@@ -132,7 +150,6 @@ export default function AICompanion() {
 
     const trimmedContent = content.trim();
     
-    // For unauthenticated users, show message but don't persist
     if (!isAuthenticated) {
       const userMessage: ChatMessage = {
         id: `user-${Date.now()}`,
@@ -156,6 +173,7 @@ export default function AICompanion() {
       try {
         await streamChat({
           messages: apiMessages,
+          companionMode: mode,
           onDelta: (chunk) => {
             assistantContent += chunk;
             setMessages(prev => {
@@ -185,12 +203,11 @@ export default function AICompanion() {
       return;
     }
 
-    // Authenticated flow with persistence
+    // Authenticated flow
     setMessage("");
     setIsLoading(true);
 
     try {
-      // 1. Insert user message into database
       const { data: userMsgData, error: userMsgError } = await supabase
         .from("mend_messages")
         .insert({
@@ -213,7 +230,6 @@ export default function AICompanion() {
 
       setMessages(prev => [...prev, userMessage]);
 
-      // 2. Prepare messages for AI
       const apiMessages = [...messages, userMessage].map(m => ({
         role: m.role,
         content: m.content,
@@ -222,9 +238,10 @@ export default function AICompanion() {
       let assistantContent = "";
       const tempAssistantId = `temp-assistant-${Date.now()}`;
 
-      // 3. Stream assistant response
       await streamChat({
         messages: apiMessages,
+        companionMode: mode,
+        userState: userState || undefined,
         onDelta: (chunk) => {
           assistantContent += chunk;
           setMessages(prev => {
@@ -238,7 +255,6 @@ export default function AICompanion() {
           });
         },
         onDone: async () => {
-          // 4. Save assistant message to database
           const { data: assistantMsgData, error: assistantMsgError } = await supabase
             .from("mend_messages")
             .insert({
@@ -252,13 +268,11 @@ export default function AICompanion() {
           if (assistantMsgError) {
             console.error("Failed to save assistant message:", assistantMsgError);
           } else {
-            // Update the temporary ID with the real one
             setMessages(prev => prev.map(m => 
               m.id === tempAssistantId ? { ...m, id: assistantMsgData.id } : m
             ));
           }
 
-          // 5. Extract signals from user message (fire and forget)
           try {
             await supabase.functions.invoke("extract_signals", {
               body: {
@@ -269,18 +283,15 @@ export default function AICompanion() {
             });
           } catch (signalError) {
             console.error("Signal extraction failed:", signalError);
-            // Don't show error to user - this is background processing
           }
 
           setIsLoading(false);
 
-          // Evaluate reflection bubble after assistant reply
-          const currentIndex = messages.length + 2; // user + assistant added
+          const currentIndex = messages.length + 2;
           evaluateReflection(
             [...messages, userMessage, { role: "assistant", content: assistantContent }].map(m => ({ role: m.role, content: m.content })),
             currentIndex
           ).then(() => {
-            // If reflection triggered, attach to this assistant message
             setReflectionAttachedTo(assistantMsgData?.id || tempAssistantId);
           });
         },
@@ -294,7 +305,7 @@ export default function AICompanion() {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
       setIsLoading(false);
     }
-  }, [isAuthenticated, isDisabled, isLoading, messages, user]);
+  }, [isAuthenticated, isDisabled, isLoading, messages, user, mode, userState, evaluateReflection]);
 
   const handleClearConversation = useCallback(async () => {
     if (messages.length === 0 || isLoading) return;
@@ -339,12 +350,10 @@ export default function AICompanion() {
     }
   };
 
-  // Welcome message for empty state (phase-aware)
   const getWelcomeMessage = () => {
     return getCompanionWelcomeText(phase, isAuthenticated);
   };
 
-  // Compute time dividers between messages
   const timeDividers = useMemo(() => {
     const dividers = new Map<string, string>();
     for (let i = 1; i < messages.length; i++) {
@@ -362,7 +371,6 @@ export default function AICompanion() {
       <div className="h-[calc(100vh-4rem)] flex flex-col lg:flex-row">
         {/* Sidebar - Gentle Prompts */}
         <aside className="w-full lg:w-72 bg-muted/30 border-b lg:border-b-0 lg:border-r border-border p-4 lg:p-6">
-          {/* Clear conversation button */}
           <AnimatePresence>
             {messages.length > 0 && (
               <motion.button
@@ -379,7 +387,6 @@ export default function AICompanion() {
             )}
           </AnimatePresence>
 
-          {/* Clear conversation confirmation dialog */}
           <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
             <AlertDialogContent className="max-w-sm rounded-2xl">
               <AlertDialogHeader>
@@ -399,33 +406,36 @@ export default function AICompanion() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
           <h3 className="text-sm font-medium text-muted-foreground mb-4">Gentle prompts</h3>
           <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0">
-            {gentlePrompts.map((prompt, index) => (
-              <motion.button
-                key={prompt.label}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                onClick={() => handlePromptClick(prompt.label)}
-                disabled={isDisabled || isLoading}
-                className={`flex items-center gap-3 px-4 py-3 bg-card rounded-xl transition-all whitespace-nowrap lg:whitespace-normal text-left group ${
-                  isDisabled || isLoading 
-                    ? "opacity-50 cursor-not-allowed" 
-                    : "hover:shadow-soft cursor-pointer"
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-lg bg-lilac-100 flex items-center justify-center transition-colors shrink-0 ${
-                  !isDisabled && !isLoading ? "group-hover:bg-lilac-200" : ""
-                }`}>
-                  <prompt.icon className="w-4 h-4 text-lilac-600" />
-                </div>
-                <span className="text-sm text-foreground">{prompt.label}</span>
-              </motion.button>
-            ))}
+            {dynamicPrompts.map((prompt, index) => {
+              const IconComponent = ICON_MAP[prompt.icon];
+              return (
+                <motion.button
+                  key={prompt.label}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => handlePromptClick(prompt.label)}
+                  disabled={isDisabled || isLoading}
+                  className={`flex items-center gap-3 px-4 py-3 bg-card rounded-xl transition-all whitespace-nowrap lg:whitespace-normal text-left group ${
+                    isDisabled || isLoading 
+                      ? "opacity-50 cursor-not-allowed" 
+                      : "hover:shadow-soft cursor-pointer"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg bg-lilac-100 flex items-center justify-center transition-colors shrink-0 ${
+                    !isDisabled && !isLoading ? "group-hover:bg-lilac-200" : ""
+                  }`}>
+                    <IconComponent className="w-4 h-4 text-lilac-600" />
+                  </div>
+                  <span className="text-sm text-foreground">{prompt.label}</span>
+                </motion.button>
+              );
+            })}
           </div>
           
-          {/* Disabled state helper text */}
           <AnimatePresence>
             {isDisabled && (
               <motion.div
@@ -445,10 +455,8 @@ export default function AICompanion() {
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-h-0">
-          {/* Chat Messages */}
           <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 p-6 lg:p-8 overflow-y-auto relative">
             {isFetchingHistory ? (
-              /* Loading state while fetching history */
               <div className="h-full flex flex-col items-center justify-center">
                 <div className="flex gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-lilac-300 animate-pulse" style={{ animationDelay: "0ms" }} />
@@ -458,7 +466,6 @@ export default function AICompanion() {
                 <p className="text-sm text-muted-foreground mt-3">Loading your conversations...</p>
               </div>
             ) : messages.length === 0 ? (
-              /* Empty State */
               <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto">
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -487,7 +494,6 @@ export default function AICompanion() {
                   {getWelcomeMessage()}
                 </motion.p>
 
-                {/* Typing Indicator Placeholder */}
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -503,12 +509,10 @@ export default function AICompanion() {
                 </motion.div>
               </div>
             ) : (
-              /* Chat Messages */
               <div className="max-w-2xl mx-auto space-y-4">
                 <AnimatePresence mode="popLayout">
                   {messages.map((msg) => (
                     <div key={msg.id}>
-                      {/* Time divider */}
                       {timeDividers.has(msg.id) && (
                         <motion.div
                           initial={{ opacity: 0 }}
@@ -547,7 +551,6 @@ export default function AICompanion() {
                           <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                         </div>
                       </motion.div>
-                      {/* Reflection bubble attached to this assistant message */}
                       {reflectionMessage && reflectionAttachedTo === msg.id && msg.role === "assistant" && (
                         <div className="mt-1.5">
                           <ReflectionBubble message={reflectionMessage} onSuppressToday={suppressToday} />
@@ -557,7 +560,6 @@ export default function AICompanion() {
                   ))}
                 </AnimatePresence>
 
-                {/* Loading indicator - "MEND is thinking..." */}
                 <AnimatePresence>
                   {isLoading && (
                     <motion.div
@@ -586,7 +588,6 @@ export default function AICompanion() {
                   )}
                 </AnimatePresence>
 
-                {/* Auth prompt for unauthenticated users */}
                 <AnimatePresence>
                   {showRedirectMessage && (
                     <motion.div
@@ -625,12 +626,10 @@ export default function AICompanion() {
                   )}
                 </AnimatePresence>
                 
-                {/* Scroll anchor */}
                 <div ref={messagesEndRef} />
               </div>
             )}
 
-            {/* Jump to latest button */}
             <AnimatePresence>
               {!isNearBottom && messages.length > 0 && (
                 <motion.button
@@ -657,6 +656,13 @@ export default function AICompanion() {
           {/* Message Input */}
           <div className="p-4 lg:p-6 border-t border-border bg-card/50">
             <div className="max-w-3xl mx-auto">
+              {/* Mode selector */}
+              {isAuthenticated && (
+                <div className="mb-3">
+                  <ModeSelector mode={mode} onModeChange={setMode} />
+                </div>
+              )}
+
               <div className="flex items-end gap-3">
                 <div className="flex-1 relative">
                   <textarea
@@ -681,7 +687,6 @@ export default function AICompanion() {
                 </Button>
               </div>
               
-              {/* Helper text for disabled state */}
               <AnimatePresence>
                 {isDisabled && (
                   <motion.p

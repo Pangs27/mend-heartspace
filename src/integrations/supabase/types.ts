@@ -106,6 +106,24 @@ export type Database = {
           },
         ]
       }
+      mend_user_preferences: {
+        Row: {
+          companion_mode: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          companion_mode?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          companion_mode?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

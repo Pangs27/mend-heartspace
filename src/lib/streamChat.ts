@@ -7,11 +7,15 @@ export async function streamChat({
   onDelta,
   onDone,
   onError,
+  companionMode,
+  userState,
 }: {
   messages: Message[];
   onDelta: (deltaText: string) => void;
   onDone: () => void;
   onError?: (error: string) => void;
+  companionMode?: string;
+  userState?: any;
 }) {
   const resp = await fetch(CHAT_URL, {
     method: "POST",
@@ -19,7 +23,11 @@ export async function streamChat({
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({
+      messages,
+      companion_mode: companionMode,
+      user_state: userState,
+    }),
   });
 
   // Handle error responses
@@ -46,7 +54,6 @@ export async function streamChat({
     if (done) break;
     textBuffer += decoder.decode(value, { stream: true });
 
-    // Process line-by-line as data arrives
     let newlineIndex: number;
     while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
       let line = textBuffer.slice(0, newlineIndex);
@@ -67,14 +74,12 @@ export async function streamChat({
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
       } catch {
-        // Incomplete JSON split across chunks: put it back and wait for more data
         textBuffer = line + "\n" + textBuffer;
         break;
       }
     }
   }
 
-  // Final flush in case remaining buffered lines arrived without trailing newline
   if (textBuffer.trim()) {
     for (let raw of textBuffer.split("\n")) {
       if (!raw) continue;
