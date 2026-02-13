@@ -358,8 +358,8 @@ export default function AICompanion() {
   }, [messages]);
 
   return (
-    <Layout>
-      <div className="h-[calc(100vh-4rem)] flex flex-col lg:flex-row">
+  <Layout hideFooter fullScreen>
+      <div className="h-full min-h-0 flex flex-col lg:flex-row">
         {/* Sidebar - Gentle Prompts */}
         <aside className="w-full lg:w-72 bg-muted/30 border-b lg:border-b-0 lg:border-r border-border p-4 lg:p-6">
           {/* Clear conversation button */}
