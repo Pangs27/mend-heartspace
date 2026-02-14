@@ -2,6 +2,42 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
+import { useMemo } from "react";
+
+/* ── tiny inline neural cluster (background decoration) ── */
+function NeuralCluster() {
+  const { nodes, edges } = useMemo(() => {
+    const rand = ((s: number) => () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; })(42);
+    const n = Array.from({ length: 18 }, (_, i) => ({
+      id: i,
+      x: 20 + rand() * 60,
+      y: 20 + rand() * 60,
+    }));
+    const e: { from: number; to: number }[] = [];
+    for (let i = 0; i < n.length; i++)
+      for (let j = i + 1; j < n.length; j++) {
+        const d = Math.hypot(n[i].x - n[j].x, n[i].y - n[j].y);
+        if (d < 20 && rand() > 0.4) e.push({ from: i, to: j });
+      }
+    return { nodes: n, edges: e };
+  }, []);
+
+  return (
+    <svg viewBox="0 0 100 100" className="w-full h-full" aria-hidden>
+      {edges.map((e, i) => (
+        <line key={i} x1={nodes[e.from].x} y1={nodes[e.from].y} x2={nodes[e.to].x} y2={nodes[e.to].y}
+          stroke="hsl(270 45% 80%)" strokeWidth={0.2} strokeOpacity={0.25} />
+      ))}
+      {nodes.map((n) => (
+        <motion.circle key={n.id} cx={n.x} cy={n.y} r={1.2}
+          fill="hsl(270 45% 78%)"
+          animate={{ r: [1.2, 1.6, 1.2], opacity: [0.25, 0.45, 0.25] }}
+          transition={{ duration: 5, ease: "easeInOut", repeat: Infinity, delay: n.id * 0.3 }}
+        />
+      ))}
+    </svg>
+  );
+}
 
 /* ── fade-in wrapper ── */
 const Reveal = ({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) => (
@@ -20,17 +56,12 @@ export default function Home() {
   return (
     <Layout>
       {/* ─── SECTION 1 — Hero ─── */}
-      <section className="relative min-h-[85vh] flex items-center pt-[3vh] overflow-hidden gradient-hero">
-        {/* Radial atmospheric field */}
-        <div className="absolute inset-0 pointer-events-none">
-          <motion.div
-            className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] md:w-[900px] md:h-[900px] rounded-full"
-            style={{
-              background: "radial-gradient(circle, hsl(270 40% 78% / 0.15) 0%, hsl(270 35% 82% / 0.06) 40%, transparent 70%)",
-            }}
-            animate={{ opacity: [1, 0.96, 1] }}
-            transition={{ duration: 9, ease: "easeInOut", repeat: Infinity }}
-          />
+      <section className="relative min-h-[85vh] flex items-center overflow-hidden gradient-hero">
+        {/* Background neural cluster */}
+        <div className="absolute inset-0 pointer-events-none opacity-30">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] md:w-[700px] md:h-[700px]">
+            <NeuralCluster />
+          </div>
         </div>
         {/* Soft gradient orbs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -41,21 +72,21 @@ export default function Home() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="max-w-2xl mx-auto text-center">
             <Reveal>
-              <h1 className="text-4xl md:text-5xl lg:text-[3.4rem] font-serif font-semibold text-foreground leading-[1.18] tracking-[-0.01em] text-balance">
+              <h1 className="text-4xl md:text-5xl lg:text-[3.4rem] font-serif font-medium text-foreground leading-snug text-balance">
                 Some thoughts don't need fixing.
                 <br className="hidden sm:block" />
                 They need understanding.
               </h1>
             </Reveal>
             <Reveal delay={0.15}>
-              <p className="mt-6 text-lg md:text-xl text-foreground/60 leading-relaxed text-balance max-w-xl mx-auto">
+              <p className="mt-6 text-lg md:text-xl text-muted-foreground leading-relaxed text-balance max-w-xl mx-auto">
                 A private space to reflect, notice patterns, and make sense of what you're carrying.
               </p>
             </Reveal>
             <Reveal delay={0.3}>
-              <div className="mt-14 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link to="/companion">
-                  <Button size="lg" className="gradient-lilac text-primary-foreground border-0 transition-all duration-300 px-8" style={{ textShadow: "0 1px 2px hsl(270 40% 20% / 0.15)", boxShadow: "var(--shadow-soft), 0 2px 8px hsl(270 35% 55% / 0.18)" }}>
+                  <Button size="lg" className="gradient-lilac text-primary-foreground border-0 shadow-soft hover:shadow-hover transition-all duration-300 px-8">
                     Begin Reflecting
                   </Button>
                 </Link>
@@ -69,45 +100,36 @@ export default function Home() {
       </section>
 
       {/* ─── SECTION 2 — The Experience ─── */}
-      <section className="py-20 lg:py-28" style={{ background: "hsl(270 30% 97% / 0.5)" }}>
+      <section className="py-28 lg:py-36 bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-2xl">
           <Reveal>
-            <h2 className="text-3xl md:text-4xl font-serif font-medium text-foreground text-center mb-10 lg:mb-14">
+            <h2 className="text-3xl md:text-4xl font-serif font-medium text-foreground text-center mb-16 lg:mb-20">
               Here's what happens over time.
             </h2>
           </Reveal>
 
           {/* Step 1 — Chat snippet */}
-          <Reveal delay={0.05} className="mb-12 lg:mb-16">
-            <div className="rounded-2xl p-6 md:p-8" style={{ background: "hsl(270 25% 96% / 0.6)" }}>
-              <div className="space-y-4 max-w-md mx-auto">
-                {/* User bubble */}
-                <div className="flex justify-end">
-                  <div className="bg-lilac-100 text-foreground rounded-2xl rounded-br-md px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-soft">
-                    I've been feeling overwhelmed at work lately.
-                  </div>
+          <Reveal delay={0.05} className="mb-16 lg:mb-20">
+            <div className="space-y-4 max-w-md mx-auto">
+              {/* User bubble */}
+              <div className="flex justify-end">
+                <div className="bg-lilac-100 text-foreground rounded-2xl rounded-br-md px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-soft">
+                  I've been feeling overwhelmed at work lately.
                 </div>
-                {/* MEND reply */}
-                <div className="flex justify-start">
-                  <div className="bg-muted text-foreground rounded-2xl rounded-bl-md px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-soft">
-                    That sounds heavy. What part of work feels the most draining right now?
-                  </div>
+              </div>
+              {/* MEND reply */}
+              <div className="flex justify-start">
+                <div className="bg-muted text-foreground rounded-2xl rounded-bl-md px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-soft">
+                  That sounds heavy. What part of work feels the most draining right now?
                 </div>
               </div>
             </div>
           </Reveal>
 
           {/* Step 2 — Pattern formation */}
-          <Reveal delay={0.05} className="mb-12 lg:mb-16">
-            <div className="max-w-xs mx-auto aspect-square flex items-center justify-center">
-              <motion.div
-                className="w-48 h-48 rounded-full"
-                style={{
-                  background: "radial-gradient(circle, hsl(270 40% 78% / 0.18) 0%, hsl(270 35% 82% / 0.07) 50%, transparent 75%)",
-                }}
-                animate={{ opacity: [0.6, 0.56, 0.6] }}
-                transition={{ duration: 9, ease: "easeInOut", repeat: Infinity }}
-              />
+          <Reveal delay={0.05} className="mb-16 lg:mb-20">
+            <div className="max-w-xs mx-auto aspect-square opacity-60">
+              <NeuralCluster />
             </div>
             <p className="text-center text-sm text-muted-foreground mt-4 max-w-sm mx-auto">
               Recently, work pressure has shown up often in your reflections.
@@ -131,29 +153,27 @@ export default function Home() {
       </section>
 
       {/* ─── SECTION 3 — Go Deeper ─── */}
-      <section className="py-20 lg:py-28" style={{ background: "hsl(165 25% 96% / 0.45)" }}>
+      <section className="py-28 lg:py-36 bg-muted/30">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-xl text-center">
           <Reveal>
-            <h2 className="text-3xl md:text-4xl font-serif font-medium text-foreground mb-5">
+            <h2 className="text-3xl md:text-4xl font-serif font-medium text-foreground mb-6">
               And when you want to go deeper.
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
-            <div className="rounded-2xl p-8 md:p-10" style={{ background: "hsl(165 20% 95% / 0.5)" }}>
-              <p className="text-muted-foreground text-lg leading-relaxed">
-                You can speak with someone trained to listen.
-                <br />
-                Or join others navigating similar experiences.
-                <br />
-                <span className="mt-2 inline-block">Only if and when you're ready.</span>
-              </p>
-            </div>
+            <p className="text-muted-foreground text-lg leading-relaxed">
+              You can speak with someone trained to listen.
+              <br />
+              Or join others navigating similar experiences.
+              <br />
+              <span className="mt-2 inline-block">Only if and when you're ready.</span>
+            </p>
           </Reveal>
         </div>
       </section>
 
       {/* ─── SECTION 4 — Emotional Close ─── */}
-      <section className="py-20 lg:py-28 bg-background">
+      <section className="py-28 lg:py-36 bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <Reveal>
             <div className="max-w-2xl mx-auto text-center bg-gradient-to-br from-lilac-100 via-mint-50 to-peach-100 rounded-3xl p-12 md:p-16 shadow-card">
