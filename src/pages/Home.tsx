@@ -2,42 +2,6 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
-import { useMemo } from "react";
-
-/* ── tiny inline neural cluster (background decoration) ── */
-function NeuralCluster() {
-  const { nodes, edges } = useMemo(() => {
-    const rand = ((s: number) => () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; })(42);
-    const n = Array.from({ length: 18 }, (_, i) => ({
-      id: i,
-      x: 20 + rand() * 60,
-      y: 20 + rand() * 60,
-    }));
-    const e: { from: number; to: number }[] = [];
-    for (let i = 0; i < n.length; i++)
-      for (let j = i + 1; j < n.length; j++) {
-        const d = Math.hypot(n[i].x - n[j].x, n[i].y - n[j].y);
-        if (d < 20 && rand() > 0.4) e.push({ from: i, to: j });
-      }
-    return { nodes: n, edges: e };
-  }, []);
-
-  return (
-    <svg viewBox="0 0 100 100" className="w-full h-full" aria-hidden>
-      {edges.map((e, i) => (
-        <line key={i} x1={nodes[e.from].x} y1={nodes[e.from].y} x2={nodes[e.to].x} y2={nodes[e.to].y}
-          stroke="hsl(270 45% 80%)" strokeWidth={0.2} strokeOpacity={0.25} />
-      ))}
-      {nodes.map((n) => (
-        <motion.circle key={n.id} cx={n.x} cy={n.y} r={1.2}
-          fill="hsl(270 45% 78%)"
-          animate={{ r: [1.2, 1.6, 1.2], opacity: [0.25, 0.45, 0.25] }}
-          transition={{ duration: 5, ease: "easeInOut", repeat: Infinity, delay: n.id * 0.3 }}
-        />
-      ))}
-    </svg>
-  );
-}
 
 /* ── fade-in wrapper ── */
 const Reveal = ({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) => (
@@ -57,11 +21,16 @@ export default function Home() {
     <Layout>
       {/* ─── SECTION 1 — Hero ─── */}
       <section className="relative min-h-[85vh] flex items-center overflow-hidden gradient-hero">
-        {/* Background neural cluster */}
-        <div className="absolute inset-0 pointer-events-none opacity-30">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] md:w-[700px] md:h-[700px]">
-            <NeuralCluster />
-          </div>
+        {/* Radial atmospheric field */}
+        <div className="absolute inset-0 pointer-events-none">
+          <motion.div
+            className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] md:w-[900px] md:h-[900px] rounded-full"
+            style={{
+              background: "radial-gradient(circle, hsl(270 40% 78% / 0.15) 0%, hsl(270 35% 82% / 0.06) 40%, transparent 70%)",
+            }}
+            animate={{ opacity: [1, 0.96, 1] }}
+            transition={{ duration: 9, ease: "easeInOut", repeat: Infinity }}
+          />
         </div>
         {/* Soft gradient orbs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -128,8 +97,15 @@ export default function Home() {
 
           {/* Step 2 — Pattern formation */}
           <Reveal delay={0.05} className="mb-16 lg:mb-20">
-            <div className="max-w-xs mx-auto aspect-square opacity-60">
-              <NeuralCluster />
+            <div className="max-w-xs mx-auto aspect-square flex items-center justify-center">
+              <motion.div
+                className="w-48 h-48 rounded-full"
+                style={{
+                  background: "radial-gradient(circle, hsl(270 40% 78% / 0.18) 0%, hsl(270 35% 82% / 0.07) 50%, transparent 75%)",
+                }}
+                animate={{ opacity: [0.6, 0.56, 0.6] }}
+                transition={{ duration: 9, ease: "easeInOut", repeat: Infinity }}
+              />
             </div>
             <p className="text-center text-sm text-muted-foreground mt-4 max-w-sm mx-auto">
               Recently, work pressure has shown up often in your reflections.
