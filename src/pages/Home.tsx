@@ -69,34 +69,36 @@ export default function Home() {
       </section>
 
       {/* ─── SECTION 2 — The Experience ─── */}
-      <section className="py-28 lg:py-36 bg-background">
+      <section className="py-20 lg:py-28" style={{ background: "hsl(270 30% 97% / 0.5)" }}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-2xl">
           <Reveal>
-            <h2 className="text-3xl md:text-4xl font-serif font-medium text-foreground text-center mb-16 lg:mb-20">
+            <h2 className="text-3xl md:text-4xl font-serif font-medium text-foreground text-center mb-10 lg:mb-14">
               Here's what happens over time.
             </h2>
           </Reveal>
 
           {/* Step 1 — Chat snippet */}
-          <Reveal delay={0.05} className="mb-16 lg:mb-20">
-            <div className="space-y-4 max-w-md mx-auto">
-              {/* User bubble */}
-              <div className="flex justify-end">
-                <div className="bg-lilac-100 text-foreground rounded-2xl rounded-br-md px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-soft">
-                  I've been feeling overwhelmed at work lately.
+          <Reveal delay={0.05} className="mb-12 lg:mb-16">
+            <div className="rounded-2xl p-6 md:p-8" style={{ background: "hsl(270 25% 96% / 0.6)" }}>
+              <div className="space-y-4 max-w-md mx-auto">
+                {/* User bubble */}
+                <div className="flex justify-end">
+                  <div className="bg-lilac-100 text-foreground rounded-2xl rounded-br-md px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-soft">
+                    I've been feeling overwhelmed at work lately.
+                  </div>
                 </div>
-              </div>
-              {/* MEND reply */}
-              <div className="flex justify-start">
-                <div className="bg-muted text-foreground rounded-2xl rounded-bl-md px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-soft">
-                  That sounds heavy. What part of work feels the most draining right now?
+                {/* MEND reply */}
+                <div className="flex justify-start">
+                  <div className="bg-muted text-foreground rounded-2xl rounded-bl-md px-5 py-3.5 text-[15px] leading-relaxed max-w-[85%] shadow-soft">
+                    That sounds heavy. What part of work feels the most draining right now?
+                  </div>
                 </div>
               </div>
             </div>
           </Reveal>
 
           {/* Step 2 — Pattern formation */}
-          <Reveal delay={0.05} className="mb-16 lg:mb-20">
+          <Reveal delay={0.05} className="mb-12 lg:mb-16">
             <div className="max-w-xs mx-auto aspect-square flex items-center justify-center">
               <motion.div
                 className="w-48 h-48 rounded-full"
@@ -129,27 +131,29 @@ export default function Home() {
       </section>
 
       {/* ─── SECTION 3 — Go Deeper ─── */}
-      <section className="py-28 lg:py-36 bg-muted/30">
+      <section className="py-20 lg:py-28" style={{ background: "hsl(165 25% 96% / 0.45)" }}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-xl text-center">
           <Reveal>
-            <h2 className="text-3xl md:text-4xl font-serif font-medium text-foreground mb-6">
+            <h2 className="text-3xl md:text-4xl font-serif font-medium text-foreground mb-5">
               And when you want to go deeper.
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
-            <p className="text-muted-foreground text-lg leading-relaxed">
-              You can speak with someone trained to listen.
-              <br />
-              Or join others navigating similar experiences.
-              <br />
-              <span className="mt-2 inline-block">Only if and when you're ready.</span>
-            </p>
+            <div className="rounded-2xl p-8 md:p-10" style={{ background: "hsl(165 20% 95% / 0.5)" }}>
+              <p className="text-muted-foreground text-lg leading-relaxed">
+                You can speak with someone trained to listen.
+                <br />
+                Or join others navigating similar experiences.
+                <br />
+                <span className="mt-2 inline-block">Only if and when you're ready.</span>
+              </p>
+            </div>
           </Reveal>
         </div>
       </section>
 
       {/* ─── SECTION 4 — Emotional Close ─── */}
-      <section className="py-28 lg:py-36 bg-background">
+      <section className="py-20 lg:py-28 bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <Reveal>
             <div className="max-w-2xl mx-auto text-center bg-gradient-to-br from-lilac-100 via-mint-50 to-peach-100 rounded-3xl p-12 md:p-16 shadow-card">
