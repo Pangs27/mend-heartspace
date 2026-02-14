@@ -14,6 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      circle_posts: {
+        Row: {
+          alias: string
+          body: string
+          circle_id: string
+          created_at: string
+          id: string
+          support_type: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          alias: string
+          body: string
+          circle_id: string
+          created_at?: string
+          id?: string
+          support_type?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          alias?: string
+          body?: string
+          circle_id?: string
+          created_at?: string
+          id?: string
+          support_type?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "circle_posts_circle_id_fkey"
+            columns: ["circle_id"]
+            isOneToOne: false
+            referencedRelation: "circles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      circles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       journal_entries: {
         Row: {
           content: string
@@ -123,6 +185,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      post_replies: {
+        Row: {
+          alias: string
+          body: string
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          alias: string
+          body: string
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          alias?: string
+          body?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_replies_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "circle_posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

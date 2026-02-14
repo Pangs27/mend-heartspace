@@ -11,8 +11,10 @@ import HowMendHelps from "./pages/HowMendHelps";
 import AICompanion from "./pages/AICompanion";
 import PatternsInsights from "./pages/PatternsInsights";
 import MicroSessions from "./pages/MicroSessions";
-import Community from "./pages/Community";
 import Pricing from "./pages/Pricing";
+import Circles from "./pages/Circles";
+import CircleDetail from "./pages/CircleDetail";
+import PostDetail from "./pages/PostDetail";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -37,7 +39,7 @@ const App = () => (
             <Route path="/" element={<Home />} />
             <Route path="/how-mend-helps" element={<HowMendHelps />} />
             <Route path="/pricing" element={<Pricing />} />
-            <Route path="/community" element={<Community />} />
+            <Route path="/community" element={<Circles />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -50,6 +52,9 @@ const App = () => (
             <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
             <Route path="/patterns" element={<ProtectedRoute><PatternsInsights /></ProtectedRoute>} />
             <Route path="/sessions" element={<ProtectedRoute><MicroSessions /></ProtectedRoute>} />
+            <Route path="/circles" element={<ProtectedRoute><Circles /></ProtectedRoute>} />
+            <Route path="/circles/:circleId" element={<ProtectedRoute><CircleDetail /></ProtectedRoute>} />
+            <Route path="/circles/:circleId/post/:postId" element={<ProtectedRoute><PostDetail /></ProtectedRoute>} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
