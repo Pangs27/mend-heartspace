@@ -79,6 +79,30 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_state: {
+        Row: {
+          id: string
+          last_updated: string
+          summary: string
+          themes: string[]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          last_updated?: string
+          summary?: string
+          themes?: string[]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          last_updated?: string
+          summary?: string
+          themes?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
       journal_entries: {
         Row: {
           content: string
