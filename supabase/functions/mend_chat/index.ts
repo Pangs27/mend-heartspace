@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,7 +32,6 @@ function classifyBucket(userText: string, mode: string): string {
   const lower = userText.toLowerCase();
   const allowed = MODE_BUCKETS[mode] || MODE_BUCKETS["Reflect with me"];
 
-  // Simple heuristic classification
   const signals: Record<string, number> = {};
   for (const b of allowed) signals[b] = 0;
 
@@ -103,7 +103,8 @@ const VARIATION_OPENERS = [
   "I'm glad you're saying this.",
 ];
 
-function buildSystemPrompt(mode: string, bucket: string, userState: any | null): string {
+/* ── Pass A: Draft system prompt ── */
+function buildDraftPrompt(mode: string, bucket: string, userState: any | null, conversationSummary: string | null): string {
   const toneLine = MODE_TONE[mode] || MODE_TONE["Reflect with me"];
   const bucketLine = BUCKET_INSTRUCTIONS[bucket] || BUCKET_INSTRUCTIONS["Emotional Processing"];
 
@@ -119,6 +120,11 @@ function buildSystemPrompt(mode: string, bucket: string, userState: any | null):
     if (parts.length) userContext = `\n\nUser context (reference naturally, never quote stats or say "I noticed a pattern"):\n${parts.join("\n")}`;
   }
 
+  let convContext = "";
+  if (conversationSummary) {
+    convContext = `\n\nConversation so far (use for continuity, do not repeat back): ${conversationSummary}`;
+  }
+
   const openerIndex = Math.floor(Math.random() * VARIATION_OPENERS.length);
 
   return `You are MEND, a reflective emotional companion. Not a therapist, coach, or authority.
@@ -128,7 +134,7 @@ Tone: ${toneLine}
 
 Communication bucket: ${bucket}
 Bucket instruction: ${bucketLine}
-${userContext}
+${userContext}${convContext}
 
 HARD CONSTRAINTS:
 - Maximum 120 words.
@@ -147,9 +153,84 @@ HARD CONSTRAINTS:
 - Never use diagnostic or clinical terms.
 - Never present yourself as an expert or authority.
 ${mode === "Just listen" ? "\nJUST LISTEN MODE: Do NOT give advice. Do NOT reframe. Do NOT infer patterns. Mirror and summarize only. Let them feel heard." : ""}
+${mode === "Help me decide" ? "\nHELP ME DECIDE MODE: Name the options they're weighing. Acknowledge the tradeoff. Ask one clarifying constraint question that narrows their choice." : ""}
+${mode === "Challenge me gently" ? "\nCHALLENGE MODE: Offer exactly one soft reframe—not confrontational, not dismissive. Follow it with one Socratic question that invites them to reconsider." : ""}
 ${bucket === "Crisis" ? "\nCRISIS OVERRIDE: Gently acknowledge what they shared. Encourage reaching out to someone they trust or a helpline. Be present, not prescriptive." : ""}
 
 If unsure, default to mirroring and asking "what do you notice?".`;
+}
+
+/* ── Pass B: Premium rewrite prompt ── */
+function buildRewritePrompt(mode: string, bucket: string): string {
+  return `You are a premium response editor for MEND, a reflective emotional companion.
+
+Rewrite the draft below into a final response. Output ONLY the rewritten response, nothing else.
+
+PREMIUM CHECKLIST (all must be satisfied):
+1. Include a one-sentence formulation: "Because X, you're feeling Y, and you need Z." — weave it in naturally, don't label it.
+2. Reference 2 concrete details from the user's message (specific events, phrases, or situations they mentioned).
+3. Use precise validation that matches the intensity of what the user shared — no generic reassurance.
+4. Ask exactly 1 targeted question that fits the "${mode}" mode.
+5. Under 120 words total.
+6. Exactly 3 short parts (paragraphs or lines).
+7. FORBIDDEN phrases: "it sounds like", "it seems like", "maybe", "perhaps", "I wonder if".
+8. No clinical language, no metaphors unless the user used them first.
+${mode === "Just listen" ? "9. JUST LISTEN: No advice. No reframes. No pattern inference. Mirror and summarize only." : ""}
+${mode === "Help me decide" ? "9. Include the options/tradeoff and one clarifying constraint question." : ""}
+${mode === "Challenge me gently" ? "9. Include one soft reframe (non-confrontational) and one Socratic question." : ""}
+${bucket === "Crisis" ? "9. CRISIS: Gently acknowledge. Encourage reaching out to someone trusted or a helpline. Brief and warm." : ""}`;
+}
+
+/* ── Conversation snapshot prompt ── */
+function buildSnapshotPrompt(): string {
+  return `Summarize this conversation turn in 1-2 sentences. Focus on the user's core emotional state and what they're working through. Also list 1-3 key themes as a JSON array of short strings. Output valid JSON only: {"summary": "...", "themes": ["...", "..."]}`;
+}
+
+/* ── Supabase helper ── */
+function getSupabaseAdmin() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+}
+
+/* ── Non-streaming AI call ── */
+async function callAI(apiKey: string, systemPrompt: string, messages: any[]): Promise<string> {
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages: [{ role: "system", content: systemPrompt }, ...messages],
+    }),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`AI call failed (${resp.status}): ${text}`);
+  }
+
+  const data = await resp.json();
+  return data.choices?.[0]?.message?.content || "";
+}
+
+/* ── Streaming AI call ── */
+async function streamAI(apiKey: string, systemPrompt: string, messages: any[]): Promise<Response> {
+  return await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages: [{ role: "system", content: systemPrompt }, ...messages],
+      stream: true,
+    }),
+  });
 }
 
 serve(async (req) => {
@@ -171,47 +252,118 @@ serve(async (req) => {
 
     console.log("[mend_chat]", JSON.stringify({ experience_mode: mode, communication_bucket: bucket }));
 
-    const systemPrompt = buildSystemPrompt(mode, bucket, user_state || null);
+    // Fetch conversation state for continuity
+    let conversationSummary: string | null = null;
+    try {
+      const authHeader = req.headers.get("authorization");
+      if (authHeader) {
+        const supabase = getSupabaseAdmin();
+        // Extract user from JWT
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user } } = await createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!
+        ).auth.getUser(token);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-        stream: true,
-      }),
-    });
+        if (user) {
+          const { data: stateData } = await supabase
+            .from("conversation_state")
+            .select("summary")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          
+          if (stateData?.summary) {
+            conversationSummary = stateData.summary;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch conversation state:", e);
+    }
 
-    if (!response.ok) {
-      if (response.status === 429) {
+    // ── Pass A: Generate draft (non-streaming) ──
+    const draftPrompt = buildDraftPrompt(mode, bucket, user_state || null, conversationSummary);
+    const draftResponse = await callAI(LOVABLE_API_KEY, draftPrompt, messages);
+
+    console.log("[mend_chat] Pass A draft generated, length:", draftResponse.length);
+
+    // ── Pass B: Premium rewrite (streaming) ──
+    const rewritePrompt = buildRewritePrompt(mode, bucket);
+    const rewriteMessages = [
+      ...messages,
+      { role: "assistant", content: draftResponse },
+      { role: "user", content: "Now rewrite this draft into the final premium response. Output ONLY the rewritten response." },
+    ];
+
+    const streamResponse = await streamAI(LOVABLE_API_KEY, rewritePrompt, rewriteMessages);
+
+    if (!streamResponse.ok) {
+      if (streamResponse.status === 429) {
         return new Response(
           JSON.stringify({ error: "I need a moment to catch my breath. Please try again in a few seconds." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
+      if (streamResponse.status === 402) {
         return new Response(
           JSON.stringify({ error: "The AI companion service needs attention. Please try again later." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      const errorText = await streamResponse.text();
+      console.error("AI gateway error (Pass B):", streamResponse.status, errorText);
       return new Response(
         JSON.stringify({ error: "Something went wrong. Let's try again in a moment." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Return bucket in a custom header for the client to read
-    return new Response(response.body, {
+    // ── Background: update conversation snapshot ──
+    // We fire this off without awaiting so it doesn't block the stream
+    (async () => {
+      try {
+        const authHeader = req.headers.get("authorization");
+        if (!authHeader) return;
+
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user } } = await createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!
+        ).auth.getUser(token);
+
+        if (!user) return;
+
+        const snapshotPrompt = buildSnapshotPrompt();
+        const snapshotInput = [
+          { role: "user", content: lastUserMsg },
+          { role: "assistant", content: draftResponse },
+        ];
+
+        const snapshotRaw = await callAI(LOVABLE_API_KEY, snapshotPrompt, snapshotInput);
+        
+        // Parse JSON from response
+        const jsonMatch = snapshotRaw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const snapshot = JSON.parse(jsonMatch[0]);
+          const supabase = getSupabaseAdmin();
+          
+          await supabase
+            .from("conversation_state")
+            .upsert({
+              user_id: user.id,
+              summary: snapshot.summary || "",
+              themes: snapshot.themes || [],
+              last_updated: new Date().toISOString(),
+            }, { onConflict: "user_id" });
+
+          console.log("[mend_chat] Conversation snapshot updated");
+        }
+      } catch (e) {
+        console.error("Snapshot update failed:", e);
+      }
+    })();
+
+    return new Response(streamResponse.body, {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream",
