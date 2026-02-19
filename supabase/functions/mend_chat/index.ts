@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,7 +32,6 @@ function classifyBucket(userText: string, mode: string): string {
   const lower = userText.toLowerCase();
   const allowed = MODE_BUCKETS[mode] || MODE_BUCKETS["Reflect with me"];
 
-  // Simple heuristic classification
   const signals: Record<string, number> = {};
   for (const b of allowed) signals[b] = 0;
 
@@ -72,24 +72,78 @@ function classifyBucket(userText: string, mode: string): string {
   return best;
 }
 
-/* ── Bucket-specific response templates ── */
-const BUCKET_INSTRUCTIONS: Record<string, string> = {
-  "Venting": "Let them release. Acknowledge the weight they are carrying using their own words. Name the specific emotion you hear. Reference one concrete detail from what they said. End with one grounding question that does not redirect or reframe.",
-  "Reassurance": "Affirm what they are feeling without minimizing it. Name the specific emotion present. Reference one concrete detail from their message. Ask one question that helps them feel seen, not analyzed.",
-  "Emotional Processing": "Reflect the specific emotion you hear in their words. Reference one concrete detail they shared. Help them sit with the feeling by asking one question that deepens their awareness without explaining why they feel this way.",
-  "Pattern Reflection": "Name the specific pattern or repetition they are describing. Reference one concrete detail from their message. Ask one question that invites curiosity about the pattern without interpreting its cause.",
-  "Seeking Perspective": "Offer one alternative angle on what they shared. Name the specific emotion underneath. Reference one concrete detail from their message. Ask one question that opens a new way of looking at the situation.",
-  "Decision Making": "Reflect the tension they are holding between options. Name the specific emotion present. Reference one concrete detail they shared. Ask one clarifying question that brings them closer to what matters most to them.",
-  "Practical Action": "Acknowledge where they are right now. Name the specific emotion you hear. Reference one concrete detail from their message. Ask one focused question about the smallest next step they could take.",
-  "Crisis": "Gently acknowledge what they shared. Do not minimize or redirect. Encourage them to reach out to someone they trust or a crisis helpline. Be present, not prescriptive. Keep your response brief and warm.",
-};
+/* ── Mode-specific system templates ── */
+const MODE_TEMPLATES: Record<string, string> = {
+  "Reflect with me": `MODE: Reflect with me
+Goal: Insight + emotional layering.
+Structure (follow exactly):
+1. Formulation: "Because [specific event], you're feeling [surface emotion] on top of [protective emotion], and you need [inferred need]."
+2. Emotional deepening: Layer surface emotion with a possible protective emotion underneath. Provide emotional deepening, not advice. Reference light past context if relevant.
+3. One precise curiosity question that invites self-exploration.
 
-const MODE_TONE: Record<string, string> = {
-  "Reflect with me": "Gentle and curious. Reflect their words back, then ask one open question.",
-  "Sit with me": "Quiet and validating. Hold space. Favor acknowledgment over questions. Slower pacing.",
-  "Challenge me gently": "Warm but honest. Offer one soft reframe. Still kind. One question max.",
-  "Help me decide": "Structured and clear. Name the tension. One clarifying question to help them get closer.",
-  "Just listen": "Mirror and summarize only. No advice. No reframing. No inferred patterns. Let them feel heard.",
+Rules:
+- Start with formulation.
+- Layer surface + protective emotion.
+- No advice. Emotional deepening only.
+- One precise curiosity question.
+- May reference light past context if relevant.
+Tone: Slow, grounded, insightful.`,
+
+  "Sit with me": `MODE: Sit with me
+Goal: Containment + presence.
+Structure (follow exactly):
+1. Reflection: Mirror their situation plainly using their own words.
+2. Validation: Name the dominant emotion clearly and validate it without explaining it.
+3. Gentle anchor: At most one gentle grounding question or a brief anchoring statement.
+
+Rules:
+- Mirror situation plainly.
+- Name dominant emotion clearly.
+- No reframes. No pattern linking. No interpretation.
+- At most one gentle grounding question.
+Tone: Calm, steady, warm. Minimal words. Maximum presence.`,
+
+  "Challenge me gently": `MODE: Challenge me gently
+Goal: Expand perspective safely.
+Structure (follow exactly):
+1. Assumption spotted: Identify one possible assumption in what they shared.
+2. Alternate frame: Offer one alternative interpretation that respects their autonomy.
+3. Direct question: Ask one direct but respectful question that invites reconsideration.
+
+Rules:
+- Identify one possible assumption.
+- Offer one alternative interpretation.
+- Maintain autonomy support. No shaming language.
+- Ask one direct but respectful question.
+Tone: Calm, firm, respectful.`,
+
+  "Help me decide": `MODE: Help me decide
+Goal: Reduce overwhelm, clarify tradeoffs.
+Structure (follow exactly):
+1. Define choice: State the real decision in one sentence.
+2. Tradeoff contrast: Present 2 options with a clear tradeoff and surface the likely value conflict.
+3. Clarifying question: Ask one constraint question that narrows their choice.
+
+Rules:
+- Define the real decision in one sentence.
+- Present 2 options with a tradeoff.
+- Surface likely value conflict.
+- Ask one constraint question.
+Tone: Structured, clear, empowering.`,
+
+  "Just listen": `MODE: Just listen
+Goal: Reflect only. Zero interpretation.
+Structure (follow exactly):
+1. Mirror: Repeat the core situation using the user's own language.
+2. Emotion naming: Name the main emotion you hear, nothing more.
+3. Invitation: Ask at most one soft invitation (e.g., "Is there more?" or "What else is there?").
+
+Rules:
+- Repeat core situation using user's own language.
+- Name main emotion. Nothing more.
+- ABSOLUTELY NO advice. NO reframing. NO interpretation. NO pattern references.
+- Ask at most one soft invitation.
+Tone: Present, simple, non-analytical.`,
 };
 
 const VARIATION_OPENERS = [
@@ -103,9 +157,12 @@ const VARIATION_OPENERS = [
   "I'm glad you're saying this.",
 ];
 
-function buildSystemPrompt(mode: string, bucket: string, userState: any | null): string {
-  const toneLine = MODE_TONE[mode] || MODE_TONE["Reflect with me"];
-  const bucketLine = BUCKET_INSTRUCTIONS[bucket] || BUCKET_INSTRUCTIONS["Emotional Processing"];
+/* ── Pass A: Draft system prompt ── */
+function buildDraftPrompt(mode: string, bucket: string, userState: any | null, conversationSummary: string | null): string {
+  const modeTemplate = MODE_TEMPLATES[mode] || MODE_TEMPLATES["Reflect with me"];
+  const bucketContext = bucket === "Crisis"
+    ? "CRISIS OVERRIDE: Gently acknowledge what they shared. Encourage reaching out to someone they trust or a helpline. Be present, not prescriptive. Keep your response brief and warm."
+    : `Communication bucket: ${bucket}`;
 
   let userContext = "";
   if (userState) {
@@ -119,37 +176,158 @@ function buildSystemPrompt(mode: string, bucket: string, userState: any | null):
     if (parts.length) userContext = `\n\nUser context (reference naturally, never quote stats or say "I noticed a pattern"):\n${parts.join("\n")}`;
   }
 
+  let convContext = "";
+  if (conversationSummary) {
+    convContext = `\n\nConversation so far (use for continuity, do not repeat back): ${conversationSummary}`;
+  }
+
   const openerIndex = Math.floor(Math.random() * VARIATION_OPENERS.length);
 
   return `You are MEND, a reflective emotional companion. Not a therapist, coach, or authority.
 
-Current experience mode: ${mode}
-Tone: ${toneLine}
+${modeTemplate}
 
-Communication bucket: ${bucket}
-Bucket instruction: ${bucketLine}
-${userContext}
+${bucketContext}
+${userContext}${convContext}
 
-HARD CONSTRAINTS:
-- Maximum 120 words.
-- Structure your reply as exactly 3 short parts (3 paragraphs or 3 lines).
-- Each reply MUST include: one specific emotion from the user message, one concrete detail from the user message, and one targeted question.
-- FORBIDDEN phrases: "it sounds like", "it seems like", "maybe", "perhaps", "I wonder if". Find other ways to reflect.
+GLOBAL CRAFT REQUIREMENTS (apply to every response):
+- Maximum 120 words. Exactly 3 short parts.
+- Include: 1 surface emotion, 1 protective emotion (if applicable), 1 inferred emotional need (safety, clarity, reassurance, autonomy, connection, or rest).
+- Reference at least 1 concrete phrase from the user's message.
+- Ask exactly 1 targeted question.
+- FORBIDDEN phrases: "it sounds like", "it seems like", "maybe", "perhaps", "I wonder if", "It is understandable".
 - Vary your opening lines. Here is one you could use if it fits: "${VARIATION_OPENERS[openerIndex]}"
 - Speak tentatively when reflecting, not conclusively.
 - Reflect the user's words and emotional tone before adding anything new.
 - Do NOT explain why feelings occur or suggest underlying causes.
-- Do NOT interpret motivations, patterns, or origins unless the user explicitly asks.
 - Avoid therapist-style or clinical language.
 - Do not introduce metaphors or theories unless the user uses them first.
-- Match response length to the user's message (but always 3 parts).
 - Never give advice, solutions, action items, or next steps.
 - Never use diagnostic or clinical terms.
 - Never present yourself as an expert or authority.
-${mode === "Just listen" ? "\nJUST LISTEN MODE: Do NOT give advice. Do NOT reframe. Do NOT infer patterns. Mirror and summarize only. Let them feel heard." : ""}
-${bucket === "Crisis" ? "\nCRISIS OVERRIDE: Gently acknowledge what they shared. Encourage reaching out to someone they trust or a helpline. Be present, not prescriptive." : ""}
 
 If unsure, default to mirroring and asking "what do you notice?".`;
+}
+
+/* ── Pass B: Premium rewrite prompt ── */
+function buildRewritePrompt(mode: string, bucket: string): string {
+  const modeTemplate = MODE_TEMPLATES[mode] || MODE_TEMPLATES["Reflect with me"];
+
+  return `You are a premium response editor for MEND, a reflective emotional companion.
+
+Rewrite the draft below into a final response. Output ONLY the rewritten response, nothing else.
+
+${modeTemplate}
+
+PREMIUM CHECKLIST (ALL must be satisfied or the response fails):
+
+1. FORMULATION (required): Include a clean sentence following this pattern:
+   "Because [specific event from user message], you're feeling [surface emotion], and you need [inferred need]."
+   Weave it naturally into the first part. Do not label it.
+
+2. EMOTIONAL LAYERING (required):
+   - Name 1 surface emotion (what they're visibly feeling).
+   - Name 1 protective emotion if applicable (what might be underneath, e.g., anger protecting hurt, numbness protecting grief).
+   - Identify 1 inferred emotional need: safety, clarity, reassurance, autonomy, connection, or rest.
+
+3. CONCRETE REFERENCE (required): Reference at least 1 specific phrase, event, or situation from the user's message. Use their actual words.
+
+4. QUESTION (required): Ask exactly 1 targeted question that fits the "${mode}" mode.
+
+5. LENGTH: Under 120 words total. Exactly 3 short parts.
+
+6. FORBIDDEN (instant fail if present): "it sounds like", "it seems like", "maybe", "perhaps", "I wonder if", "It is understandable".
+
+7. No clinical language, no metaphors unless the user used them first. No dashes.
+
+${bucket === "Crisis" ? "CRISIS: Gently acknowledge. Encourage reaching out to someone trusted or a helpline. Brief and warm." : ""}
+
+VALIDATION: Before outputting, verify:
+- [ ] Formulation sentence present
+- [ ] Surface emotion named
+- [ ] Protective emotion named (if applicable)
+- [ ] Emotional need identified
+- [ ] At least 1 concrete user phrase referenced
+- [ ] Exactly 1 question asked
+- [ ] Under 120 words
+- [ ] No forbidden phrases
+- [ ] 3 parts structure
+If any check fails, rewrite until all pass. Output only the final response.`;
+}
+
+/* ── Conversation snapshot prompt ── */
+function buildSnapshotPrompt(): string {
+  return `Summarize this conversation turn in 1-2 sentences. Focus on the user's core emotional state and what they're working through. Also list 1-3 key themes as a JSON array of short strings. Output valid JSON only: {"summary": "...", "themes": ["...", "..."]}`;
+}
+
+/* ── Supabase helper ── */
+function getSupabaseAdmin() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+}
+
+/* ── Non-streaming AI call ── */
+async function callAI(apiKey: string, systemPrompt: string, messages: any[]): Promise<string> {
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages: [{ role: "system", content: systemPrompt }, ...messages],
+    }),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`AI call failed (${resp.status}): ${text}`);
+  }
+
+  const data = await resp.json();
+  return data.choices?.[0]?.message?.content || "";
+}
+
+/* ── Streaming AI call ── */
+async function streamAI(apiKey: string, systemPrompt: string, messages: any[]): Promise<Response> {
+  return await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages: [{ role: "system", content: systemPrompt }, ...messages],
+      stream: true,
+    }),
+  });
+}
+
+/* ── Premium constraint validation ── */
+function validatePremiumConstraints(text: string): { passed: boolean; failures: string[] } {
+  const failures: string[] = [];
+  const lower = text.toLowerCase();
+
+  const forbidden = ["it sounds like", "it seems like", "maybe", "perhaps", "i wonder if", "it is understandable"];
+  for (const phrase of forbidden) {
+    if (lower.includes(phrase)) failures.push(`Contains forbidden phrase: "${phrase}"`);
+  }
+
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  if (wordCount > 130) failures.push(`Over word limit: ${wordCount} words`);
+
+  const questionCount = (text.match(/\?/g) || []).length;
+  if (questionCount === 0) failures.push("No question found");
+  if (questionCount > 2) failures.push(`Too many questions: ${questionCount}`);
+
+  const paragraphs = text.split(/\n\n+/).filter(s => s.trim());
+  if (paragraphs.length > 4) failures.push(`Too many parts: ${paragraphs.length}`);
+
+  return { passed: failures.length === 0, failures };
 }
 
 serve(async (req) => {
@@ -159,7 +337,7 @@ serve(async (req) => {
 
   try {
     const { messages, companion_mode, user_state } = await req.json();
-    
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
@@ -169,49 +347,124 @@ serve(async (req) => {
     const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user")?.content || "";
     const bucket = classifyBucket(lastUserMsg, mode);
 
-    console.log("[mend_chat]", JSON.stringify({ experience_mode: mode, communication_bucket: bucket }));
+    // Fetch conversation state for continuity
+    let conversationSummary: string | null = null;
+    try {
+      const authHeader = req.headers.get("authorization");
+      if (authHeader) {
+        const supabase = getSupabaseAdmin();
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user } } = await createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!
+        ).auth.getUser(token);
 
-    const systemPrompt = buildSystemPrompt(mode, bucket, user_state || null);
+        if (user) {
+          const { data: stateData } = await supabase
+            .from("conversation_state")
+            .select("summary")
+            .eq("user_id", user.id)
+            .maybeSingle();
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
-        stream: true,
-      }),
-    });
+          if (stateData?.summary) {
+            conversationSummary = stateData.summary;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch conversation state:", e);
+    }
 
-    if (!response.ok) {
-      if (response.status === 429) {
+    // ── Pass A: Generate draft (non-streaming) ──
+    const draftPrompt = buildDraftPrompt(mode, bucket, user_state || null, conversationSummary);
+    const draftResponse = await callAI(LOVABLE_API_KEY, draftPrompt, messages);
+
+    console.log("[mend_chat] Pass A draft generated, length:", draftResponse.length);
+
+    // ── Pass B: Premium rewrite (streaming) ──
+    const rewritePrompt = buildRewritePrompt(mode, bucket);
+    const rewriteMessages = [
+      ...messages,
+      { role: "assistant", content: draftResponse },
+      { role: "user", content: "Now rewrite this draft into the final premium response. Output ONLY the rewritten response." },
+    ];
+
+    const streamResponse = await streamAI(LOVABLE_API_KEY, rewritePrompt, rewriteMessages);
+
+    if (!streamResponse.ok) {
+      if (streamResponse.status === 429) {
         return new Response(
           JSON.stringify({ error: "I need a moment to catch my breath. Please try again in a few seconds." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
+      if (streamResponse.status === 402) {
         return new Response(
           JSON.stringify({ error: "The AI companion service needs attention. Please try again later." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      const errorText = await streamResponse.text();
+      console.error("AI gateway error (Pass B):", streamResponse.status, errorText);
       return new Response(
         JSON.stringify({ error: "Something went wrong. Let's try again in a moment." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Return bucket in a custom header for the client to read
-    return new Response(response.body, {
+    // ── Validate + Debug log ──
+    const validation = validatePremiumConstraints(draftResponse);
+    console.log("[mend_chat]", JSON.stringify({
+      experience_mode: mode,
+      communication_bucket: bucket,
+      premium_constraints_satisfied: validation.passed,
+      ...(validation.failures.length ? { constraint_failures: validation.failures } : {}),
+    }));
+
+    // ── Background: update conversation snapshot ──
+    (async () => {
+      try {
+        const authHeader = req.headers.get("authorization");
+        if (!authHeader) return;
+
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user } } = await createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!
+        ).auth.getUser(token);
+
+        if (!user) return;
+
+        const snapshotPrompt = buildSnapshotPrompt();
+        const snapshotInput = [
+          { role: "user", content: lastUserMsg },
+          { role: "assistant", content: draftResponse },
+        ];
+
+        const snapshotRaw = await callAI(LOVABLE_API_KEY, snapshotPrompt, snapshotInput);
+
+        const jsonMatch = snapshotRaw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const snapshot = JSON.parse(jsonMatch[0]);
+          const supabase = getSupabaseAdmin();
+
+          await supabase
+            .from("conversation_state")
+            .upsert({
+              user_id: user.id,
+              summary: snapshot.summary || "",
+              themes: snapshot.themes || [],
+              last_updated: new Date().toISOString(),
+            }, { onConflict: "user_id" });
+
+          console.log("[mend_chat] Conversation snapshot updated");
+        }
+      } catch (e) {
+        console.error("Snapshot update failed:", e);
+      }
+    })();
+
+    return new Response(streamResponse.body, {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream",
