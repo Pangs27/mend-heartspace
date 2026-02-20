@@ -397,7 +397,7 @@ export default function AICompanion() {
 
         {/* Main Chat Area — fully centered */}
         <div className="flex-1 flex flex-col min-h-0">
-          <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 px-4 py-6 lg:px-8 lg:py-10 overflow-y-auto relative">
+          <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 px-4 py-6 pb-12 lg:px-8 lg:py-10 lg:pb-16 overflow-y-auto relative">
             {isFetchingHistory ? (
               <div className="h-full flex flex-col items-center justify-center">
                 <div className="flex gap-1.5">
@@ -589,13 +589,13 @@ export default function AICompanion() {
           </div>
 
           {/* Message Input Area */}
-          <div className="p-4 lg:p-6 border-t border-border/50 bg-card/30">
+          <div className="pt-6 px-4 pb-4 lg:pt-8 lg:px-6 lg:pb-6 border-t border-border/30 bg-card/20">
             <div className="max-w-[720px] mx-auto">
               {/* Gentle Prompts — horizontal chips */}
               {!isDisabled && (
-                <div className="mb-4">
-                  <p className="text-xs text-muted-foreground/70 mb-2.5">Not sure where to begin?</p>
-                  <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+                <div className="mb-3">
+                  <p className="text-[0.8rem] font-medium text-muted-foreground/60 mb-3">Not sure where to begin?</p>
+                  <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
                     {dynamicPrompts.map((prompt, index) => {
                       const IconComponent = ICON_MAP[prompt.icon];
                       return (
@@ -606,9 +606,9 @@ export default function AICompanion() {
                           transition={{ delay: index * 0.04 }}
                           onClick={() => handlePromptClick(prompt.label)}
                           disabled={isLoading}
-                          className="flex items-center gap-2 px-4 py-2.5 bg-muted/60 hover:bg-muted rounded-full whitespace-nowrap text-xs text-muted-foreground hover:text-foreground transition-all hover:-translate-y-0.5 hover:shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-2 px-5 py-2.5 bg-muted/40 hover:bg-muted/70 rounded-2xl whitespace-nowrap text-xs text-muted-foreground/80 hover:text-foreground transition-all duration-200 hover:-translate-y-px hover:shadow-[0_2px_8px_-2px_hsl(var(--primary)/0.12)] shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <IconComponent className="w-3.5 h-3.5 text-lilac-400" />
+                          <IconComponent className="w-3 h-3 text-lilac-300" />
                           <span>{prompt.label}</span>
                         </motion.button>
                       );
