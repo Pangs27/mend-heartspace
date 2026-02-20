@@ -73,7 +73,7 @@ export function Navbar() {
             </Link>
 
             {/* Desktop Navigation — ICON ONLY */}
-            <div className="hidden lg:flex items-center gap-2">
+            <div className="hidden lg:flex items-center gap-6">
               {navLinks.map((link) => {
                 const Icon = link.icon;
                 const isActive = location.pathname === link.path;
