@@ -16,7 +16,7 @@ export function ModeSelector({ mode, onModeChange }: ModeSelectorProps) {
     <div className="flex items-center justify-end gap-2">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground bg-muted/60 hover:bg-muted rounded-full border border-border/50 transition-colors">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/70 hover:bg-muted rounded-full border border-border/50 transition-colors">
             <span className="max-w-[140px] truncate">{mode}</span>
             <ChevronDown className="w-3 h-3 shrink-0" />
           </button>
