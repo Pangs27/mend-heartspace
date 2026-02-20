@@ -27,7 +27,7 @@ export default function HowMendHelps() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="text-lg text-muted-foreground leading-relaxed mb-10 max-w-2xl mx-auto"
             >
-              MEND helps you reflect clearly, notice patterns over time, and grow at your own pace — without judgment, pressure, or noise.
+              MEND helps you reflect clearly, notice patterns over time, and grow at your own pace. Without judgment, pressure, or noise.
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -63,7 +63,7 @@ export default function HowMendHelps() {
               A mirror that helps you hear yourself.
             </h2>
             <p className="text-muted-foreground leading-relaxed max-w-2xl">
-              Express freely. MEND reflects back your emotional tone and intent with clarity, helping you see what you're actually feeling — not just what you're saying.
+              Express freely. MEND reflects back your emotional tone and intent with clarity, helping you see what you're actually feeling, not just what you're saying.
             </p>
           </motion.div>
         </div>
@@ -96,7 +96,7 @@ export default function HowMendHelps() {
             <FeatureCard
               icon={Activity}
               title="Pattern Recognition"
-              description="Over time, MEND identifies emotional patterns — recurring triggers, mood cycles, and behavioral tendencies that shape your wellbeing."
+              description="Over time, MEND identifies emotional patterns such as recurring triggers, mood cycles, and behavioral tendencies that shape your wellbeing."
               variant="mint"
               delay={0}
             />
