@@ -38,10 +38,31 @@ Respond with exactly the JSON structure requested, nothing else.`;
 
 function getISTTimeInfo(): { localTime: string; suggestedBucket: string } {
   const now = new Date();
-  // IST is UTC+5:30
-  const istOffset = 5.5 * 60 * 60 * 1000;
-  const istDate = new Date(now.getTime() + istOffset);
-  const hours = istDate.getUTCHours();
+
+  // Get total UTC minutes since midnight
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+
+  // IST offset = +330 minutes
+  const istMinutes = (utcMinutes + 330 + 1440) % 1440;
+
+  const hours = Math.floor(istMinutes / 60);
+  const minutes = istMinutes % 60;
+
+  const localTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+
+  let suggestedBucket: string;
+  if (hours >= 5 && hours < 12) {
+    suggestedBucket = "morning";
+  } else if (hours >= 12 && hours < 17) {
+    suggestedBucket = "afternoon";
+  } else if (hours >= 17 && hours < 21) {
+    suggestedBucket = "evening";
+  } else {
+    suggestedBucket = "night";
+  }
+
+  return { localTime, suggestedBucket };
+}
   
   let suggestedBucket: string;
   if (hours >= 5 && hours < 12) {
