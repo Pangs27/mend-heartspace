@@ -127,6 +127,45 @@ export type Database = {
         }
         Relationships: []
       }
+      mend_memory_evidence: {
+        Row: {
+          created_at: string | null
+          id: string
+          memory_id: string
+          message_id: string | null
+          snippet: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          memory_id: string
+          message_id?: string | null
+          snippet?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          memory_id?: string
+          message_id?: string | null
+          snippet?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mend_memory_evidence_memory_id_fkey"
+            columns: ["memory_id"]
+            isOneToOne: false
+            referencedRelation: "mend_user_memory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mend_memory_evidence_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "mend_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mend_messages: {
         Row: {
           communication_bucket: string | null
@@ -201,6 +240,54 @@ export type Database = {
           },
         ]
       }
+      mend_user_memory: {
+        Row: {
+          confidence: number | null
+          content: string
+          created_at: string | null
+          evidence_count: number | null
+          first_seen_at: string | null
+          id: string
+          last_seen_at: string | null
+          memory_type: string
+          safety_level: string | null
+          source: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          confidence?: number | null
+          content: string
+          created_at?: string | null
+          evidence_count?: number | null
+          first_seen_at?: string | null
+          id?: string
+          last_seen_at?: string | null
+          memory_type: string
+          safety_level?: string | null
+          source?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          confidence?: number | null
+          content?: string
+          created_at?: string | null
+          evidence_count?: number | null
+          first_seen_at?: string | null
+          id?: string
+          last_seen_at?: string | null
+          memory_type?: string
+          safety_level?: string | null
+          source?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       mend_user_preferences: {
         Row: {
           companion_mode: string
@@ -216,6 +303,45 @@ export type Database = {
           companion_mode?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      mend_weekly_insights: {
+        Row: {
+          created_at: string | null
+          dominant_emotions: Json | null
+          id: string
+          narrative: string | null
+          time_bucket_peaks: Json | null
+          top_triggers: Json | null
+          user_id: string
+          volatility_score: number | null
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string | null
+          dominant_emotions?: Json | null
+          id?: string
+          narrative?: string | null
+          time_bucket_peaks?: Json | null
+          top_triggers?: Json | null
+          user_id: string
+          volatility_score?: number | null
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string | null
+          dominant_emotions?: Json | null
+          id?: string
+          narrative?: string | null
+          time_bucket_peaks?: Json | null
+          top_triggers?: Json | null
+          user_id?: string
+          volatility_score?: number | null
+          week_end?: string
+          week_start?: string
         }
         Relationships: []
       }

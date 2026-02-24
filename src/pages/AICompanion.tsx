@@ -61,6 +61,8 @@ export default function AICompanion() {
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [hasInitiallyScrolled, setHasInitiallyScrolled] = useState(false);
   const [reflectionAttachedTo, setReflectionAttachedTo] = useState<string | null>(null);
+  const [memoryMomentUsed, setMemoryMomentUsed] = useState(false);
+  const [pendingMemoryMoment, setPendingMemoryMoment] = useState<string | null>(null);
 
   const { reflectionMessage, evaluate: evaluateReflection, reset: resetReflection, suppressToday } = useReflectionBubble(user?.id);
 
@@ -209,6 +211,32 @@ export default function AICompanion() {
     setIsLoading(true);
 
     try {
+      // Check for memory moment (once per session)
+      let memoryMoment: string | undefined;
+      if (!memoryMomentUsed) {
+        try {
+          const { data: highConfMemories } = await supabase
+            .from("mend_user_memory")
+            .select("content, memory_type, evidence_count, confidence, safety_level")
+            .eq("user_id", user!.id)
+            .eq("status", "active")
+            .eq("memory_type", "recurring_theme")
+            .gt("evidence_count", 3)
+            .gt("confidence", 0.7)
+            .neq("safety_level", "crisis_related")
+            .order("evidence_count", { ascending: false })
+            .limit(1);
+
+          if (highConfMemories && highConfMemories.length > 0) {
+            memoryMoment = highConfMemories[0].content;
+            setMemoryMomentUsed(true);
+            setPendingMemoryMoment(memoryMoment);
+          }
+        } catch (e) {
+          console.error("Memory moment check failed:", e);
+        }
+      }
+
       const { data: userMsgData, error: userMsgError } = await supabase
         .from("mend_messages")
         .insert({
@@ -244,6 +272,7 @@ export default function AICompanion() {
         messages: apiMessages,
         companionMode: mode,
         userState: userState || undefined,
+        memoryMoment: memoryMoment,
         onDelta: (chunk) => {
           assistantContent += chunk;
           setMessages(prev => {
