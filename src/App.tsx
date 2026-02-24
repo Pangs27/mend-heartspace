@@ -22,6 +22,7 @@ import AuthCallback from "./pages/AuthCallback";
 import Dashboard from "./pages/Dashboard";
 import CheckIn from "./pages/CheckIn";
 import Journal from "./pages/Journal";
+import Insights from "./pages/Insights";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
             <Route path="/patterns" element={<ProtectedRoute><PatternsInsights /></ProtectedRoute>} />
             <Route path="/sessions" element={<ProtectedRoute><MicroSessions /></ProtectedRoute>} />
+            <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />
             <Route path="/circles" element={<ProtectedRoute><Circles /></ProtectedRoute>} />
             <Route path="/circles/:circleId" element={<ProtectedRoute><CircleDetail /></ProtectedRoute>} />
             <Route path="/circles/:circleId/post/:postId" element={<ProtectedRoute><PostDetail /></ProtectedRoute>} />

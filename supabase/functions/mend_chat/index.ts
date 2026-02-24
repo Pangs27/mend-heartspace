@@ -157,8 +157,91 @@ const VARIATION_OPENERS = [
   "I'm glad you're saying this.",
 ];
 
+/* ── Memory pack types ── */
+interface MemoryPack {
+  recurring_themes: string[];
+  triggers: string[];
+  coping_patterns: string[];
+  preferences: string[];
+  goals: string[];
+  boundaries: string[];
+  recent_trend: string;
+}
+
+/* ── Fetch memory pack ── */
+async function getMemoryPack(supabase: any, userId: string): Promise<MemoryPack | null> {
+  try {
+    const { data: memories } = await supabase
+      .from("mend_user_memory")
+      .select("memory_type, content, evidence_count, confidence")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .order("evidence_count", { ascending: false })
+      .order("last_seen_at", { ascending: false })
+      .limit(8);
+
+    if (!memories || memories.length === 0) return null;
+
+    const pack: MemoryPack = {
+      recurring_themes: [],
+      triggers: [],
+      coping_patterns: [],
+      preferences: [],
+      goals: [],
+      boundaries: [],
+      recent_trend: "",
+    };
+
+    for (const m of memories) {
+      switch (m.memory_type) {
+        case "recurring_theme": pack.recurring_themes.push(m.content); break;
+        case "trigger": pack.triggers.push(m.content); break;
+        case "coping_pattern": pack.coping_patterns.push(m.content); break;
+        case "preference": pack.preferences.push(m.content); break;
+        case "goal": pack.goals.push(m.content); break;
+        case "boundary": pack.boundaries.push(m.content); break;
+        case "relationship_context": pack.recurring_themes.push(m.content); break;
+      }
+    }
+
+    // Fetch most recent weekly insight for trend
+    const { data: insight } = await supabase
+      .from("mend_weekly_insights")
+      .select("narrative")
+      .eq("user_id", userId)
+      .order("week_start", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (insight?.narrative) {
+      pack.recent_trend = insight.narrative.slice(0, 200);
+    }
+
+    return pack;
+  } catch (e) {
+    console.error("Failed to fetch memory pack:", e);
+    return null;
+  }
+}
+
+/* ── Format memory pack for system prompt (max ~1000 chars) ── */
+function formatMemoryContext(pack: MemoryPack): string {
+  const lines: string[] = ["User Memory Context:"];
+
+  if (pack.recurring_themes.length) lines.push(`Recurring themes:\n${pack.recurring_themes.map(t => `- ${t}`).join("\n")}`);
+  if (pack.triggers.length) lines.push(`Common triggers:\n${pack.triggers.map(t => `- ${t}`).join("\n")}`);
+  if (pack.coping_patterns.length) lines.push(`Helpful coping:\n${pack.coping_patterns.map(t => `- ${t}`).join("\n")}`);
+  if (pack.goals.length) lines.push(`Goals:\n${pack.goals.map(t => `- ${t}`).join("\n")}`);
+  if (pack.boundaries.length) lines.push(`Boundaries:\n${pack.boundaries.map(t => `- ${t}`).join("\n")}`);
+  if (pack.preferences.length) lines.push(`Preferences:\n${pack.preferences.map(t => `- ${t}`).join("\n")}`);
+  if (pack.recent_trend) lines.push(`Recent trend: ${pack.recent_trend}`);
+
+  const result = lines.join("\n\n");
+  return result.slice(0, 1000);
+}
+
 /* ── Pass A: Draft system prompt ── */
-function buildDraftPrompt(mode: string, bucket: string, userState: any | null, conversationSummary: string | null): string {
+function buildDraftPrompt(mode: string, bucket: string, userState: any | null, conversationSummary: string | null, memoryPack: MemoryPack | null, memoryMoment?: string): string {
   const modeTemplate = MODE_TEMPLATES[mode] || MODE_TEMPLATES["Reflect with me"];
   const bucketContext = bucket === "Crisis"
     ? "CRISIS OVERRIDE: Gently acknowledge what they shared. Encourage reaching out to someone they trust or a helpline. Be present, not prescriptive. Keep your response brief and warm."
@@ -181,6 +264,16 @@ function buildDraftPrompt(mode: string, bucket: string, userState: any | null, c
     convContext = `\n\nConversation so far (use for continuity, do not repeat back): ${conversationSummary}`;
   }
 
+  let memoryContext = "";
+  if (memoryPack) {
+    memoryContext = `\n\n${formatMemoryContext(memoryPack)}\n(Use memory context naturally. Do not quote it directly. Do not say "I remember" or "you mentioned before" unless evidence_count is very high.)`;
+  }
+
+  let memoryMomentContext = "";
+  if (memoryMoment) {
+    memoryMomentContext = `\n\nMEMORY MOMENT (use naturally in this response, weave it in gently): "${memoryMoment}". Frame it as something you've noticed over time. Do not overemphasize it.`;
+  }
+
   const openerIndex = Math.floor(Math.random() * VARIATION_OPENERS.length);
 
   return `You are MEND, a reflective emotional companion. Not a therapist, coach, or authority.
@@ -188,7 +281,7 @@ function buildDraftPrompt(mode: string, bucket: string, userState: any | null, c
 ${modeTemplate}
 
 ${bucketContext}
-${userContext}${convContext}
+${userContext}${convContext}${memoryContext}${memoryMomentContext}
 
 GLOBAL CRAFT REQUIREMENTS (apply to every response):
 - Maximum 120 words. Exactly 3 short parts.
@@ -253,6 +346,35 @@ VALIDATION: Before outputting, verify:
 - [ ] No forbidden phrases
 - [ ] 3 parts structure
 If any check fails, rewrite until all pass. Output only the final response.`;
+}
+
+/* ── Pass C: Memory extraction prompt ── */
+function buildMemoryExtractionPrompt(): string {
+  return `You are a memory extraction module for MEND, an emotional companion.
+
+Extract durable behavioral memory items from this interaction. These will be stored long-term to help MEND understand the user over time.
+
+Return JSON ONLY in this exact format:
+{
+  "add": [
+    {
+      "memory_type": "recurring_theme|trigger|coping_pattern|preference|relationship_context|goal|boundary",
+      "content": "short reusable description under 120 characters",
+      "confidence": 0.5,
+      "safety_level": "normal|sensitive|crisis_related"
+    }
+  ]
+}
+
+Rules:
+- Do NOT store personal identifiers (names, locations, workplaces).
+- Do NOT store explicit self-harm content. For crisis themes, use abstract phrasing like "persistent hopelessness".
+- Keep content under 120 characters.
+- Content must be reusable and abstract, not a direct quote from the user.
+- Only extract genuinely durable patterns, not fleeting mentions.
+- If nothing durable exists in this interaction, return {"add": []}.
+- Maximum 3 items per extraction.
+- Confidence should be 0.3-0.6 for first mentions, higher only if strongly evidenced.`;
 }
 
 /* ── Conversation snapshot prompt ── */
@@ -330,13 +452,125 @@ function validatePremiumConstraints(text: string): { passed: boolean; failures: 
   return { passed: failures.length === 0, failures };
 }
 
+/* ── Simple similarity check ── */
+function contentSimilarity(a: string, b: string): number {
+  const wordsA = new Set(a.toLowerCase().split(/\s+/));
+  const wordsB = new Set(b.toLowerCase().split(/\s+/));
+  const intersection = [...wordsA].filter(w => wordsB.has(w)).length;
+  const union = new Set([...wordsA, ...wordsB]).size;
+  return union === 0 ? 0 : intersection / union;
+}
+
+/* ── Pass C: Extract and store memories ── */
+async function extractAndStoreMemories(
+  apiKey: string,
+  supabase: any,
+  userId: string,
+  userMessage: string,
+  assistantResponse: string,
+  memoryPack: MemoryPack | null,
+  messageId?: string
+) {
+  try {
+    const extractionPrompt = buildMemoryExtractionPrompt();
+    const extractionMessages = [
+      { role: "user", content: userMessage },
+      { role: "assistant", content: assistantResponse },
+    ];
+
+    if (memoryPack) {
+      extractionMessages.unshift({
+        role: "user",
+        content: `Current memory context:\n${JSON.stringify(memoryPack)}`,
+      });
+    }
+
+    const raw = await callAI(apiKey, extractionPrompt, extractionMessages);
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return;
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!parsed.add || !Array.isArray(parsed.add) || parsed.add.length === 0) return;
+
+    for (const item of parsed.add.slice(0, 3)) {
+      if (!item.memory_type || !item.content || item.content.length > 120) continue;
+
+      const validTypes = ["preference", "recurring_theme", "trigger", "coping_pattern", "relationship_context", "goal", "boundary"];
+      if (!validTypes.includes(item.memory_type)) continue;
+
+      const safetyLevel = item.safety_level === "crisis_related" ? "crisis_related" : item.safety_level === "sensitive" ? "sensitive" : "normal";
+
+      // Check for existing similar memory
+      const { data: existing } = await supabase
+        .from("mend_user_memory")
+        .select("id, content, evidence_count, confidence")
+        .eq("user_id", userId)
+        .eq("memory_type", item.memory_type)
+        .eq("status", "active");
+
+      let matchedMemoryId: string | null = null;
+      if (existing) {
+        for (const ex of existing) {
+          if (contentSimilarity(ex.content, item.content) > 0.8) {
+            matchedMemoryId = ex.id;
+            // Update existing memory
+            await supabase
+              .from("mend_user_memory")
+              .update({
+                evidence_count: ex.evidence_count + 1,
+                confidence: Math.min(1, (ex.confidence || 0.5) + 0.05),
+                last_seen_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", ex.id);
+            break;
+          }
+        }
+      }
+
+      if (!matchedMemoryId) {
+        // Insert new memory
+        const { data: newMemory } = await supabase
+          .from("mend_user_memory")
+          .insert({
+            user_id: userId,
+            memory_type: item.memory_type,
+            content: item.content,
+            confidence: item.confidence || 0.5,
+            safety_level: safetyLevel,
+            source: "chat",
+          })
+          .select("id")
+          .single();
+
+        if (newMemory) matchedMemoryId = newMemory.id;
+      }
+
+      // Insert evidence link
+      if (matchedMemoryId && messageId) {
+        await supabase
+          .from("mend_memory_evidence")
+          .insert({
+            memory_id: matchedMemoryId,
+            message_id: messageId,
+            snippet: userMessage.slice(0, 200),
+          });
+      }
+    }
+
+    console.log("[mend_chat] Pass C: Memory extraction complete");
+  } catch (e) {
+    console.error("Memory extraction failed:", e);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { messages, companion_mode, user_state } = await req.json();
+    const { messages, companion_mode, user_state, memory_moment } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -347,8 +581,11 @@ serve(async (req) => {
     const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user")?.content || "";
     const bucket = classifyBucket(lastUserMsg, mode);
 
-    // Fetch conversation state for continuity
+    // Fetch conversation state + memory pack
     let conversationSummary: string | null = null;
+    let memoryPack: MemoryPack | null = null;
+    let userId: string | null = null;
+    
     try {
       const authHeader = req.headers.get("authorization");
       if (authHeader) {
@@ -360,15 +597,22 @@ serve(async (req) => {
         ).auth.getUser(token);
 
         if (user) {
-          const { data: stateData } = await supabase
-            .from("conversation_state")
-            .select("summary")
-            .eq("user_id", user.id)
-            .maybeSingle();
+          userId = user.id;
+          
+          // Fetch conversation state and memory pack in parallel
+          const [stateResult, packResult] = await Promise.all([
+            supabase
+              .from("conversation_state")
+              .select("summary")
+              .eq("user_id", user.id)
+              .maybeSingle(),
+            getMemoryPack(supabase, user.id),
+          ]);
 
-          if (stateData?.summary) {
-            conversationSummary = stateData.summary;
+          if (stateResult.data?.summary) {
+            conversationSummary = stateResult.data.summary;
           }
+          memoryPack = packResult;
         }
       }
     } catch (e) {
@@ -376,7 +620,7 @@ serve(async (req) => {
     }
 
     // ── Pass A: Generate draft (non-streaming) ──
-    const draftPrompt = buildDraftPrompt(mode, bucket, user_state || null, conversationSummary);
+    const draftPrompt = buildDraftPrompt(mode, bucket, user_state || null, conversationSummary, memoryPack, memory_moment);
     const draftResponse = await callAI(LOVABLE_API_KEY, draftPrompt, messages);
 
     console.log("[mend_chat] Pass A draft generated, length:", draftResponse.length);
@@ -418,51 +662,104 @@ serve(async (req) => {
       experience_mode: mode,
       communication_bucket: bucket,
       premium_constraints_satisfied: validation.passed,
+      memory_pack_injected: !!memoryPack,
       ...(validation.failures.length ? { constraint_failures: validation.failures } : {}),
     }));
 
-    // ── Background: update conversation snapshot ──
-    (async () => {
-      try {
-        const authHeader = req.headers.get("authorization");
-        if (!authHeader) return;
-
-        const token = authHeader.replace("Bearer ", "");
-        const { data: { user } } = await createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_ANON_KEY")!
-        ).auth.getUser(token);
-
-        if (!user) return;
-
-        const snapshotPrompt = buildSnapshotPrompt();
-        const snapshotInput = [
-          { role: "user", content: lastUserMsg },
-          { role: "assistant", content: draftResponse },
-        ];
-
-        const snapshotRaw = await callAI(LOVABLE_API_KEY, snapshotPrompt, snapshotInput);
-
-        const jsonMatch = snapshotRaw.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const snapshot = JSON.parse(jsonMatch[0]);
+    // ── Background: Pass C memory extraction + conversation snapshot ──
+    if (userId) {
+      (async () => {
+        try {
           const supabase = getSupabaseAdmin();
 
-          await supabase
-            .from("conversation_state")
-            .upsert({
-              user_id: user.id,
-              summary: snapshot.summary || "",
-              themes: snapshot.themes || [],
-              last_updated: new Date().toISOString(),
-            }, { onConflict: "user_id" });
+          // Find the most recent user message ID for evidence linking
+          const { data: recentMsg } = await supabase
+            .from("mend_messages")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("role", "user")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-          console.log("[mend_chat] Conversation snapshot updated");
+          // Run Pass C memory extraction and conversation snapshot in parallel
+          await Promise.all([
+            extractAndStoreMemories(
+              LOVABLE_API_KEY,
+              supabase,
+              userId!,
+              lastUserMsg,
+              draftResponse,
+              memoryPack,
+              recentMsg?.id
+            ),
+            (async () => {
+              const snapshotPrompt = buildSnapshotPrompt();
+              const snapshotInput = [
+                { role: "user", content: lastUserMsg },
+                { role: "assistant", content: draftResponse },
+              ];
+
+              const snapshotRaw = await callAI(LOVABLE_API_KEY, snapshotPrompt, snapshotInput);
+              const jsonMatch = snapshotRaw.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const snapshot = JSON.parse(jsonMatch[0]);
+                await supabase
+                  .from("conversation_state")
+                  .upsert({
+                    user_id: userId,
+                    summary: snapshot.summary || "",
+                    themes: snapshot.themes || [],
+                    last_updated: new Date().toISOString(),
+                  }, { onConflict: "user_id" });
+                console.log("[mend_chat] Conversation snapshot updated");
+              }
+            })(),
+          ]);
+        } catch (e) {
+          console.error("Background tasks failed:", e);
         }
-      } catch (e) {
-        console.error("Snapshot update failed:", e);
-      }
-    })();
+      })();
+    } else {
+      // Unauthenticated: just do snapshot if possible
+      (async () => {
+        try {
+          const authHeader = req.headers.get("authorization");
+          if (!authHeader) return;
+
+          const token = authHeader.replace("Bearer ", "");
+          const { data: { user } } = await createClient(
+            Deno.env.get("SUPABASE_URL")!,
+            Deno.env.get("SUPABASE_ANON_KEY")!
+          ).auth.getUser(token);
+
+          if (!user) return;
+
+          const snapshotPrompt = buildSnapshotPrompt();
+          const snapshotInput = [
+            { role: "user", content: lastUserMsg },
+            { role: "assistant", content: draftResponse },
+          ];
+
+          const snapshotRaw = await callAI(LOVABLE_API_KEY, snapshotPrompt, snapshotInput);
+          const jsonMatch = snapshotRaw.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const snapshot = JSON.parse(jsonMatch[0]);
+            const supabase = getSupabaseAdmin();
+            await supabase
+              .from("conversation_state")
+              .upsert({
+                user_id: user.id,
+                summary: snapshot.summary || "",
+                themes: snapshot.themes || [],
+                last_updated: new Date().toISOString(),
+              }, { onConflict: "user_id" });
+          }
+        } catch (e) {
+          console.error("Snapshot update failed:", e);
+        }
+      })();
+    }
 
     return new Response(streamResponse.body, {
       headers: {

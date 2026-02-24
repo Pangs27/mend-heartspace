@@ -13,6 +13,7 @@ export async function streamChat({
   onError,
   companionMode,
   userState,
+  memoryMoment,
 }: {
   messages: Message[];
   onDelta: (deltaText: string) => void;
@@ -20,6 +21,7 @@ export async function streamChat({
   onError?: (error: string) => void;
   companionMode?: string;
   userState?: any;
+  memoryMoment?: string;
 }) {
   const resp = await fetch(CHAT_URL, {
     method: "POST",
@@ -31,6 +33,7 @@ export async function streamChat({
       messages,
       companion_mode: companionMode,
       user_state: userState,
+      memory_moment: memoryMoment,
     }),
   });
 

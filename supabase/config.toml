@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.extract_signals]
 verify_jwt = false
+
+[functions.generate_weekly_insight]
+verify_jwt = false
