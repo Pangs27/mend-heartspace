@@ -264,8 +264,6 @@ serve(async (req) => {
         intensity: signals.intensity,
         context: signals.context,
         time_bucket: signals.time_bucket,
-        confidence: signals.confidence,
-        safe_summary: signals.safe_summary,
       })
       .select()
       .single();
