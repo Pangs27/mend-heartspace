@@ -302,50 +302,129 @@ ${mode === "Just listen" || mode === "Challenge me gently" ? "- Do NOT ask any q
 If unsure, default to mirroring and asking "what do you notice?".`;
 }
 
+/* ── Formulation styles and question types for Pass B variety ── */
+const FORMULATION_STYLES = [
+  "direct_mirroring",
+  "pattern_naming",
+  "emotional_contrast",
+  "narrative_frame",
+  "observational_reflection",
+  "gentle_hypothesis",
+] as const;
+
+const QUESTION_TYPES = [
+  "somatic",
+  "belief",
+  "boundary",
+  "value",
+  "relational",
+  "future",
+] as const;
+
+function pickRandom<T>(arr: readonly T[], exclude?: T): T {
+  const filtered = exclude ? arr.filter(x => x !== exclude) : [...arr];
+  return filtered[Math.floor(Math.random() * filtered.length)];
+}
+
+/* ── Per-request state for anti-repetition (reset each serve call) ── */
+let lastFormulationStyle: string | null = null;
+let lastQuestionType: string | null = null;
+
 /* ── Pass B: Premium rewrite prompt ── */
 function buildRewritePrompt(mode: string, bucket: string): string {
-  const modeTemplate = MODE_TEMPLATES[mode] || MODE_TEMPLATES["Reflect with me"];
+  const formulationStyle = pickRandom(FORMULATION_STYLES, lastFormulationStyle as any);
+  const questionType = pickRandom(QUESTION_TYPES, lastQuestionType as any);
+  lastFormulationStyle = formulationStyle;
+  lastQuestionType = questionType;
 
-  return `You are a premium response editor for MEND, a reflective emotional companion.
+  const noQuestionMode = mode === "Just listen" || mode === "Challenge me gently";
 
-Rewrite the draft below into a final response. Output ONLY the rewritten response, nothing else.
+  return `You are rewriting a draft companion response into a premium, emotionally intelligent response.
 
-${modeTemplate}
+Your goal is to make it feel deeply human, natural, and psychologically attuned — not templated.
 
-PREMIUM CHECKLIST (ALL must be satisfied or the response fails):
+Do not repeat structural phrasing from prior turns.
 
-1. FORMULATION (required): Include a clean sentence following this pattern:
-   "Because [specific event from user message], you're feeling [surface emotion], and you need [inferred need]."
-   Weave it naturally into the first part. Do not label it.
+Do not begin with:
+- Because you
+- It sounds like
+- It seems like
 
-2. EMOTIONAL LAYERING (required):
-   - Name 1 surface emotion (what they're visibly feeling).
-   - Name 1 protective emotion if applicable (what might be underneath, e.g., anger protecting hurt, numbness protecting grief).
-   - Identify 1 inferred emotional need: safety, clarity, reassurance, autonomy, connection, or rest.
+Use the assigned formulation style only:
+FORMULATION_STYLE: ${formulationStyle}
 
-3. CONCRETE REFERENCE (required): Reference at least 1 specific phrase, event, or situation from the user's message. Use their actual words.
+The previous formulation style was:
+PREVIOUS_STYLE: ${lastFormulationStyle || "none"}
 
-4. QUESTION: ${mode === "Just listen" || mode === "Challenge me gently" ? "Do NOT ask any questions. End every response with a statement, never a question mark." : `Ask exactly 1 targeted question that fits the "${mode}" mode.`}
+Do not reuse the previous style.
 
-5. LENGTH: Under 120 words total. Exactly 3 short parts.
+${noQuestionMode ? "" : `The assigned question type is:
+QUESTION_TYPE: ${questionType}
 
-6. FORBIDDEN (instant fail if present): "it sounds like", "it seems like", "maybe", "perhaps", "I wonder if", "It is understandable".
+The previous question type was:
+PREVIOUS_QUESTION_TYPE: ${lastQuestionType || "none"}
 
-7. No clinical language, no metaphors unless the user used them first. No dashes.
+Do not reuse the previous question type.`}
+
+Response rules:
+1. Maximum 120 words.
+2. Calm, grounded, non-clinical tone.
+3. No dashes.
+4. Emotional layering must feel natural, not formulaic.
+5. Do not explicitly label "protective emotion" unless absolutely necessary.
+6. Avoid repetitive sentence rhythm.
+7. Avoid therapy-manual phrasing.
+8. Use concrete language drawn from the user's message.
+9. ${noQuestionMode ? "Do not include a question. End with a statement." : "Maintain exactly one question."}
+10. ${noQuestionMode ? "End every response with a statement, never a question mark." : `Ask exactly 1 question of type "${questionType}".`}
+
+Formulation style guidance:
+
+direct_mirroring:
+Open with vivid emotional reflection grounded in the user's specific situation.
+
+pattern_naming:
+Gently name a recurring pattern without sounding analytical.
+
+emotional_contrast:
+Highlight contrast between surface reaction and underlying vulnerability.
+
+narrative_frame:
+Frame the experience as a recurring story or chapter.
+
+observational_reflection:
+Describe what you are noticing with steady, grounded language.
+
+gentle_hypothesis:
+Offer a soft interpretation using uncertain language once, not repeatedly.
+
+${!noQuestionMode ? `Question type guidance:
+
+somatic:
+Ask about physical sensation in the body.
+
+belief:
+Ask about the belief forming underneath the reaction.
+
+boundary:
+Ask what boundary may feel crossed.
+
+value:
+Ask what personal value feels unmet.
+
+relational:
+Ask how they interpret the other person's behavior.
+
+future:
+Ask what would feel different next time.` : ""}
 
 ${bucket === "Crisis" ? "CRISIS: Gently acknowledge. Encourage reaching out to someone trusted or a helpline. Brief and warm." : ""}
 
-VALIDATION: Before outputting, verify:
-- [ ] Formulation sentence present
-- [ ] Surface emotion named
-- [ ] Protective emotion named (if applicable)
-- [ ] Emotional need identified
-- [ ] At least 1 concrete user phrase referenced
-- [ ] ${mode === "Just listen" || mode === "Challenge me gently" ? "No questions present (no question marks)" : "Exactly 1 question asked"}
-- [ ] Under 120 words
-- [ ] No forbidden phrases
-- [ ] 3 parts structure
-If any check fails, rewrite until all pass. Output only the final response.`;
+The final output must be the rewritten response only.
+No explanations.
+No labels.
+No JSON.
+No meta commentary.`;
 }
 
 /* ── Pass C: Memory extraction prompt ── */
