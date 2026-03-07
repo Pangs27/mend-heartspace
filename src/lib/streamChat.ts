@@ -116,5 +116,5 @@ export async function streamChat({
     }
   }
 
-  onDone({ communicationBucket });
+  onDone({ communicationBucket, formulationStyle, questionType });
 }
