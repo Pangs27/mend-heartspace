@@ -24,6 +24,8 @@ export async function streamChat({
   companionMode?: string;
   userState?: any;
   memoryMoment?: string;
+  lastFormulationStyle?: string | null;
+  lastQuestionType?: string | null;
 }) {
   const resp = await fetch(CHAT_URL, {
     method: "POST",
