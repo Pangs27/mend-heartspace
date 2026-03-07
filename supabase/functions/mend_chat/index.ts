@@ -348,7 +348,7 @@ Use the assigned formulation style only:
 FORMULATION_STYLE: ${formulationStyle}
 
 The previous formulation style was:
-PREVIOUS_STYLE: ${lastFormulationStyle || "none"}
+PREVIOUS_STYLE: ${prevFormulationStyle || "none"}
 
 Do not reuse the previous style.
 
