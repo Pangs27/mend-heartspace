@@ -45,6 +45,8 @@ export async function streamChat({
 
   // Read bucket header before consuming body
   const communicationBucket = resp.headers.get("X-Communication-Bucket");
+  const formulationStyle = resp.headers.get("X-Formulation-Style");
+  const questionType = resp.headers.get("X-Question-Type");
 
   // Handle error responses
   if (!resp.ok) {
