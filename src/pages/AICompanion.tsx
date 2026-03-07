@@ -279,6 +279,8 @@ export default function AICompanion() {
         companionMode: mode,
         userState: userState || undefined,
         memoryMoment: memoryMoment,
+        lastFormulationStyle,
+        lastQuestionType,
         onDelta: (chunk) => {
           assistantContent += chunk;
           setMessages(prev => {
