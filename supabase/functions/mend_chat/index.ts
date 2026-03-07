@@ -356,7 +356,7 @@ ${noQuestionMode ? "" : `The assigned question type is:
 QUESTION_TYPE: ${questionType}
 
 The previous question type was:
-PREVIOUS_QUESTION_TYPE: ${lastQuestionType || "none"}
+PREVIOUS_QUESTION_TYPE: ${prevQuestionType || "none"}
 
 Do not reuse the previous question type.`}
 
