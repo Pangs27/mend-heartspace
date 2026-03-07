@@ -841,6 +841,8 @@ serve(async (req) => {
         ...corsHeaders,
         "Content-Type": "text/event-stream",
         "X-Communication-Bucket": bucket,
+        "X-Formulation-Style": formulationStyle,
+        "X-Question-Type": questionType,
       },
     });
   } catch (e) {
