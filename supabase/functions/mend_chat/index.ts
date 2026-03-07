@@ -326,16 +326,10 @@ function pickRandom<T>(arr: readonly T[], exclude?: T): T {
   return filtered[Math.floor(Math.random() * filtered.length)];
 }
 
-/* ── Per-request state for anti-repetition (reset each serve call) ── */
-let lastFormulationStyle: string | null = null;
-let lastQuestionType: string | null = null;
-
 /* ── Pass B: Premium rewrite prompt ── */
-function buildRewritePrompt(mode: string, bucket: string): string {
-  const formulationStyle = pickRandom(FORMULATION_STYLES, lastFormulationStyle as any);
-  const questionType = pickRandom(QUESTION_TYPES, lastQuestionType as any);
-  lastFormulationStyle = formulationStyle;
-  lastQuestionType = questionType;
+function buildRewritePrompt(mode: string, bucket: string, prevFormulationStyle?: string | null, prevQuestionType?: string | null): { prompt: string; formulationStyle: string; questionType: string } {
+  const formulationStyle = pickRandom(FORMULATION_STYLES, prevFormulationStyle as any);
+  const questionType = pickRandom(QUESTION_TYPES, prevQuestionType as any);
 
   const noQuestionMode = mode === "Just listen" || mode === "Challenge me gently";
 
