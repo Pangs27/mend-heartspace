@@ -38,6 +38,8 @@ export async function streamChat({
       companion_mode: companionMode,
       user_state: userState,
       memory_moment: memoryMoment,
+      last_formulation_style: lastFormulationStyle,
+      last_question_type: lastQuestionType,
     }),
   });
 
