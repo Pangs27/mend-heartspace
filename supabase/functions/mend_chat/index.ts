@@ -333,7 +333,7 @@ function buildRewritePrompt(mode: string, bucket: string, prevFormulationStyle?:
 
   const noQuestionMode = mode === "Just listen" || mode === "Challenge me gently";
 
-  return `You are rewriting a draft companion response into a premium, emotionally intelligent response.
+  const prompt = `You are rewriting a draft companion response into a premium, emotionally intelligent response.
 
 Your goal is to make it feel deeply human, natural, and psychologically attuned — not templated.
 
