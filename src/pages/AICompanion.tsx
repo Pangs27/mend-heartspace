@@ -178,6 +178,8 @@ export default function AICompanion() {
         await streamChat({
           messages: apiMessages,
           companionMode: mode,
+          lastFormulationStyle,
+          lastQuestionType,
           onDelta: (chunk) => {
             assistantContent += chunk;
             setMessages(prev => {
