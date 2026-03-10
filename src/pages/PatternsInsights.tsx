@@ -234,6 +234,7 @@ export default function PatternsInsights() {
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [dateRange, setDateRangeRaw] = useState<DateRange>("30");
   const setDateRange = (v: DateRange) => { clearSnapshotCache(); setDateRangeRaw(v); };
+  const [hoveredInfo, setHoveredInfo] = useState<HoveredNodeInfo | null>(null);
 
   // Unified signal graph data
   const { data: signalGraph, isLoading: graphLoading } = useUnifiedSignals(dateRange);
