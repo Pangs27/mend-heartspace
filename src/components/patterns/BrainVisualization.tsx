@@ -24,6 +24,16 @@ function seededRandom(seed: number) {
   };
 }
 
+// Theme labels per cluster
+const clusterLabels: string[][] = [
+  // Cluster 0 — emotional states (lavender)
+  ["stress", "tension", "overthinking", "unease", "heaviness", "worry", "frustration", "restlessness"],
+  // Cluster 1 — stabilizing moments (mint)
+  ["relief", "quiet time", "calm", "gratitude", "ease", "rest", "lightness", "peace"],
+  // Cluster 2 — context signals (gray)
+  ["work", "relationships", "routine", "family", "change", "the future", "health", "self"],
+];
+
 function generateGraph(nodeCount: number): { nodes: Node[]; edges: Edge[] } {
   const rand = seededRandom(42);
   const nodes: Node[] = [];
@@ -39,16 +49,18 @@ function generateGraph(nodeCount: number): { nodes: Node[]; edges: Edge[] } {
     const cluster = i % 3;
     const cx = centers[cluster].x;
     const cy = centers[cluster].y;
-    // Tighter spread within clusters for cohesion, but enough variety
     const spread = 18;
     const sizeRoll = rand();
     const size = sizeRoll > 0.82 ? 1.25 + rand() * 0.2 : sizeRoll > 0.35 ? 0.85 + rand() * 0.25 : 0.5 + rand() * 0.25;
+    const labels = clusterLabels[cluster];
+    const label = labels[Math.floor(rand() * labels.length)];
     nodes.push({
       id: i,
       x: cx + (rand() - 0.5) * spread * 2,
       y: cy + (rand() - 0.5) * spread * 1.6,
       cluster,
       size,
+      label,
     });
   }
 
