@@ -542,7 +542,7 @@ export function BrainVisualization({
           );
         })}
 
-        {/* Hover tooltip — refined typography */}
+        {/* Hover tooltip — HTML foreignObject for proper wrapping */}
         {hoveredNode !== null && !selectedNode && !isEmpty && (() => {
           const node = nodeMap.get(hoveredNode);
           if (!node) return null;
@@ -556,59 +556,82 @@ export function BrainVisualization({
             : null;
           const freq = Math.round(node.weight * 10) || 1;
 
-          const line1 = node.label;
-          const line2 = `Appeared ~${freq} times`;
-          const line3 = connectedLabels.length > 0 ? `Often with: ${connectedLabels.join(", ")}` : "";
-          const line4 = stabilizerNode ? `Stabilizer: ${stabilizerNode.label}` : "";
-
-          const lines = [line1, line2, line3, line4].filter(Boolean);
-          const maxLineLen = Math.max(...lines.map((l) => l.length));
-          const labelWidth = Math.max(maxLineLen * 1.0 + 5, 18);
-          const titleLineH = 3.6;
-          const bodyLineH = 3.0;
-          const paddingTop = 2.8;
-          const paddingBottom = 2.0;
-          const boxHeight = paddingTop + titleLineH + (lines.length - 1) * bodyLineH + paddingBottom;
-          const tooltipY = node.y - node.size * 2 - boxHeight - 2;
-          const clampedX = Math.max(labelWidth / 2 + 1, Math.min(99 - labelWidth / 2, node.x));
+          const tooltipW = 28;
+          const tooltipH = 22;
+          const rawX = node.x - tooltipW / 2;
+          const rawY = node.y - node.size * 2 - tooltipH - 2;
+          const clampedX = Math.max(1, Math.min(99 - tooltipW, rawX));
+          const clampedY = Math.max(1, rawY);
 
           return (
-            <g style={{ pointerEvents: "none" }}>
-              {/* Shadow layer */}
-              <rect
-                x={clampedX - labelWidth / 2 + 0.3} y={tooltipY + 0.4}
-                width={labelWidth} height={boxHeight} rx={1.8}
-                fill="hsl(270 20% 10%)" opacity={0.18}
-              />
-              {/* Main tooltip */}
-              <rect
-                x={clampedX - labelWidth / 2} y={tooltipY}
-                width={labelWidth} height={boxHeight} rx={1.8}
-                fill={tooltipColors.bg} opacity={0.95}
-              />
-              {/* Cluster accent line */}
-              <rect
-                x={clampedX - labelWidth / 2 + 1.2} y={tooltipY + 1.2}
-                width={0.4} height={titleLineH}
-                rx={0.2}
-                fill={clusterColors.node[node.cluster]} opacity={0.6}
-              />
-              {lines.map((line, li) => (
-                <text
-                  key={li}
-                  x={clampedX} y={tooltipY + paddingTop + (li === 0 ? 0 : titleLineH + (li - 1) * bodyLineH)}
-                  textAnchor="middle"
-                  fontSize={li === 0 ? "2.9" : "2.2"}
-                  fontWeight={li === 0 ? "600" : "400"}
-                  letterSpacing={li === 0 ? "-0.02em" : "-0.01em"}
-                  fill={li === 0 ? tooltipColors.textPrimary : li === 1 ? tooltipColors.textSecondary : tooltipColors.textMuted}
-                  fontFamily={FONT_STACK}
-                  style={{ textTransform: li === 0 ? "capitalize" : "none" }}
-                >
-                  {line}
-                </text>
-              ))}
-            </g>
+            <foreignObject
+              x={clampedX} y={clampedY}
+              width={tooltipW} height={tooltipH}
+              style={{ pointerEvents: "none", overflow: "visible" }}
+            >
+              <div
+                style={{
+                  background: tooltipColors.bg,
+                  borderRadius: "1.8px",
+                  padding: "1.6px 2px",
+                  fontFamily: FONT_STACK,
+                  opacity: 0.96,
+                  boxShadow: "0 0.4px 1.2px hsl(270 20% 10% / 0.2)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.6px",
+                }}
+              >
+                {/* Accent dot + title */}
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "1px" }}>
+                  <div
+                    style={{
+                      width: "0.7px",
+                      height: "0.7px",
+                      borderRadius: "50%",
+                      background: clusterColors.node[node.cluster],
+                      marginTop: "0.5px",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div
+                    style={{
+                      fontSize: "2.4px",
+                      fontWeight: 600,
+                      color: tooltipColors.textPrimary,
+                      letterSpacing: "-0.02em",
+                      lineHeight: 1.3,
+                      textTransform: "capitalize",
+                      wordBreak: "break-word",
+                      overflowWrap: "break-word",
+                    }}
+                  >
+                    {node.label}
+                  </div>
+                </div>
+                <div style={{ fontSize: "1.8px", color: tooltipColors.textSecondary, lineHeight: 1.35 }}>
+                  Appeared ~{freq} times
+                </div>
+                {connectedLabels.length > 0 && (
+                  <div
+                    style={{
+                      fontSize: "1.8px",
+                      color: tooltipColors.textMuted,
+                      lineHeight: 1.35,
+                      wordBreak: "break-word",
+                      overflowWrap: "break-word",
+                    }}
+                  >
+                    Often with: {connectedLabels.join(", ")}
+                  </div>
+                )}
+                {stabilizerNode && (
+                  <div style={{ fontSize: "1.8px", color: tooltipColors.textMuted, lineHeight: 1.35 }}>
+                    Stabilizer: {stabilizerNode.label}
+                  </div>
+                )}
+              </div>
+            </foreignObject>
           );
         })()}
       </motion.svg>
