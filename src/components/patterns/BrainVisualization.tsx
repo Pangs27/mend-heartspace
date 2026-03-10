@@ -238,6 +238,7 @@ export function BrainVisualization({
           ? clusterColors.nodeEmpty[node.cluster]
           : clusterColors.node[node.cluster];
 
+        const isHovered = hoveredNode === node.id;
         return (
           <motion.circle
             key={node.id}
@@ -245,22 +246,60 @@ export function BrainVisualization({
             cy={node.y}
             r={baseRadius}
             fill={fillColor}
+            style={{ cursor: isEmpty ? "default" : "pointer" }}
+            onMouseEnter={() => !isEmpty && setHoveredNode(node.id)}
+            onMouseLeave={() => setHoveredNode(null)}
             animate={{
-              r: [baseRadius, baseRadius * 1.18, baseRadius],
+              r: isHovered ? [baseRadius * 1.4, baseRadius * 1.5, baseRadius * 1.4] : [baseRadius, baseRadius * 1.18, baseRadius],
               opacity: isEmpty
                 ? [0.22, 0.38, 0.22]
+                : isHovered
+                ? [0.85, 1, 0.85]
                 : isHighlight
                 ? [0.6, 0.88, 0.6]
                 : [0.32, 0.52, 0.32],
             }}
             transition={{
-              duration: pulse.duration,
+              duration: isHovered ? 1.5 : pulse.duration,
               ease: pulse.ease as any,
               repeat: Infinity,
-              delay,
+              delay: isHovered ? 0 : delay,
             }}
           />
         );
+      })}
+
+      {/* Tooltip for hovered node */}
+      {hoveredNode !== null && !isEmpty && (() => {
+        const node = nodes[hoveredNode];
+        const labelWidth = node.label.length * 1.1 + 2;
+        const tooltipY = node.y - node.size * 2 - 3;
+        const clampedX = Math.max(labelWidth / 2 + 1, Math.min(99 - labelWidth / 2, node.x));
+        return (
+          <g>
+            <rect
+              x={clampedX - labelWidth / 2}
+              y={tooltipY - 2}
+              width={labelWidth}
+              height={4}
+              rx={1}
+              fill="hsl(250 15% 20%)"
+              opacity={0.85}
+            />
+            <text
+              x={clampedX}
+              y={tooltipY + 0.6}
+              textAnchor="middle"
+              fontSize="2.2"
+              fill="hsl(250 15% 92%)"
+              fontFamily="inherit"
+              style={{ pointerEvents: "none" }}
+            >
+              {node.label}
+            </text>
+          </g>
+        );
+      })()}
       })}
     </svg>
   );
