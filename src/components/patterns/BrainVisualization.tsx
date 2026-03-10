@@ -13,10 +13,11 @@ function seededRandom(seed: number) {
   };
 }
 
+/* Tighter, more centered cluster positions */
 const centers = [
-  { x: 24, y: 32 },
-  { x: 76, y: 28 },
-  { x: 50, y: 72 },
+  { x: 32, y: 36 },
+  { x: 68, y: 34 },
+  { x: 50, y: 66 },
 ];
 
 interface LayoutNode {
@@ -43,12 +44,12 @@ function layoutRealNodes(graphNodes: GraphNode[], graphEdges: GraphEdge[]): { no
     const gn = graphNodes[i];
     const cx = centers[gn.cluster].x;
     const cy = centers[gn.cluster].y;
-    const spread = 16;
+    const spread = 11; // tighter clustering
     const size = 0.5 + gn.weight * 1.0;
     nodes.push({
       id: gn.id,
       x: cx + (rand() - 0.5) * spread * 2,
-      y: cy + (rand() - 0.5) * spread * 1.6,
+      y: cy + (rand() - 0.5) * spread * 1.4,
       cluster: gn.cluster,
       size,
       label: gn.label,
@@ -75,8 +76,8 @@ function generateEmptyGraph(count: number): { nodes: LayoutNode[]; edges: Layout
     const labels = placeholders[cluster];
     nodes.push({
       id: `empty-${i}`,
-      x: cx + (rand() - 0.5) * 32,
-      y: cy + (rand() - 0.5) * 25,
+      x: cx + (rand() - 0.5) * 24,
+      y: cy + (rand() - 0.5) * 20,
       cluster,
       size: 0.5 + rand() * 0.3,
       label: labels[Math.floor(rand() * labels.length)],
@@ -90,7 +91,7 @@ function generateEmptyGraph(count: number): { nodes: LayoutNode[]; edges: Layout
       const dx = nodes[i].x - nodes[j].x;
       const dy = nodes[i].y - nodes[j].y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (nodes[i].cluster === nodes[j].cluster && dist < 16 && rand() > 0.5) {
+      if (nodes[i].cluster === nodes[j].cluster && dist < 14 && rand() > 0.45) {
         edges.push({ from: nodes[i].id, to: nodes[j].id, strength: 1 });
       }
     }
@@ -110,30 +111,38 @@ const pulseConfig: Record<BaselineState, { duration: number; ease: string }> = {
 const clusterColors = {
   node: [
     "hsl(270 45% 72%)",
-    "hsl(165 35% 70%)",
+    "hsl(162 42% 65%)",  // increased mint saturation
     "hsl(250 12% 68%)",
   ],
   nodeEmpty: [
     "hsl(270 20% 84%)",
-    "hsl(165 18% 84%)",
+    "hsl(162 22% 84%)",
     "hsl(250 10% 84%)",
   ],
   glow: [
     "hsl(270 40% 78%)",
-    "hsl(165 30% 76%)",
+    "hsl(162 35% 74%)",
     "hsl(250 12% 76%)",
   ],
   edge: [
     "hsl(270 25% 82%)",
-    "hsl(165 20% 82%)",
+    "hsl(162 22% 80%)",
     "hsl(250 8% 84%)",
   ],
   edgeHighlight: [
     "hsl(270 45% 68%)",
-    "hsl(165 40% 62%)",
+    "hsl(162 42% 58%)",
     "hsl(250 18% 62%)",
   ],
   edgeCross: "hsl(250 10% 86%)",
+};
+
+/* Tooltip palette – deep lavender gray */
+const tooltipColors = {
+  bg: "#2F2B36",
+  textPrimary: "#F3F1F7",
+  textSecondary: "#CFC8D9",
+  textMuted: "#A9A0B8",
 };
 
 const clusterNames = ["Emotional state", "Stabilizing moment", "Context signal"];
@@ -180,6 +189,9 @@ export interface HoveredNodeInfo {
   stabilizer: string | null;
 }
 
+/* ── Transition duration constant ─────────────── */
+const HOVER_TRANSITION = "0.12s";
+
 /* ── Component ──────────────────────────────────── */
 
 interface BrainVisualizationProps {
@@ -213,10 +225,9 @@ export function BrainVisualization({
 
   const nodeMap = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 
-  // Adjacency: which nodes are connected to which, and which edge indices
   const adjacency = useMemo(() => {
     const neighbors = new Map<string, Set<string>>();
-    const edgeSet = new Map<string, number[]>(); // nodeId -> edge indices
+    const edgeSet = new Map<string, number[]>();
     edges.forEach((e, i) => {
       if (!neighbors.has(e.from)) neighbors.set(e.from, new Set());
       if (!neighbors.has(e.to)) neighbors.set(e.to, new Set());
@@ -230,7 +241,6 @@ export function BrainVisualization({
     return { neighbors, edgeSet };
   }, [edges]);
 
-  // Connected set for the hovered node
   const connectedNodeIds = useMemo(() => {
     if (!hoveredNode || isEmpty) return null;
     const set = new Set<string>();
@@ -245,7 +255,6 @@ export function BrainVisualization({
     return new Set(adjacency.edgeSet.get(hoveredNode) || []);
   }, [hoveredNode, adjacency, isEmpty]);
 
-  // Notify parent of hover info
   useEffect(() => {
     if (!onHoverNode) return;
     if (!hoveredNode || isEmpty) {
@@ -258,7 +267,6 @@ export function BrainVisualization({
     const connectedLabels = nbrs
       ? [...nbrs].map((id) => nodeMap.get(id)?.label).filter(Boolean) as string[]
       : [];
-    // Find if any connected node is a stabilizer (cluster 1)
     const stabilizerNode = nbrs
       ? [...nbrs].map((id) => nodeMap.get(id)).find((n) => n && n.cluster === 1)
       : null;
@@ -301,8 +309,13 @@ export function BrainVisualization({
   const selectedLayoutNode = selectedNode ? nodeMap.get(selectedNode) : null;
   const insight = selectedLayoutNode ? getMockInsight(selectedLayoutNode) : null;
 
-  // Is path-highlight mode active?
   const pathActive = !!connectedNodeIds && !selectedNode;
+
+  /* Dominant nodes get persistent labels (weight > 0.6) */
+  const dominantNodes = useMemo(() => {
+    if (isEmpty) return [];
+    return nodes.filter((n) => n.weight >= 0.6 && n.label !== "...");
+  }, [nodes, isEmpty]);
 
   return (
     <div ref={containerRef} className="relative">
@@ -314,7 +327,7 @@ export function BrainVisualization({
       >
         <defs>
           <pattern id="pattern-grid" width="4" height="4" patternUnits="userSpaceOnUse">
-            <path d="M 4 0 L 0 0 0 4" fill="none" stroke="hsl(250 15% 82%)" strokeWidth="0.06" opacity="0.35" />
+            <path d="M 4 0 L 0 0 0 4" fill="none" stroke="hsl(250 15% 82%)" strokeWidth="0.05" opacity="0.18" />
           </pattern>
           <filter id="glow-0" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur in="SourceGraphic" stdDeviation="1.2" />
@@ -325,6 +338,19 @@ export function BrainVisualization({
           <filter id="glow-2" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur in="SourceGraphic" stdDeviation="0.9" />
           </filter>
+          {/* Radial gradients for emotional nodes (cluster 0) */}
+          <radialGradient id="node-grad-0" cx="40%" cy="40%" r="60%">
+            <stop offset="0%" stopColor="hsl(268 50% 78%)" />
+            <stop offset="100%" stopColor="hsl(270 45% 72%)" />
+          </radialGradient>
+          <radialGradient id="node-grad-1" cx="40%" cy="40%" r="60%">
+            <stop offset="0%" stopColor="hsl(160 48% 72%)" />
+            <stop offset="100%" stopColor="hsl(162 42% 65%)" />
+          </radialGradient>
+          <radialGradient id="node-grad-2" cx="40%" cy="40%" r="60%">
+            <stop offset="0%" stopColor="hsl(248 16% 74%)" />
+            <stop offset="100%" stopColor="hsl(250 12% 68%)" />
+          </radialGradient>
         </defs>
         <rect width="100" height="100" fill="url(#pattern-grid)" />
 
@@ -335,7 +361,6 @@ export function BrainVisualization({
           if (!a || !b) return null;
           const sameCluster = a.cluster === b.cluster;
 
-          // Path highlighting
           const isConnectedEdge = connectedEdgeIndices?.has(i);
           const dimmed = pathActive && !isConnectedEdge;
 
@@ -350,7 +375,7 @@ export function BrainVisualization({
             : clusterColors.edgeCross;
 
           const strokeW = isConnectedEdge
-            ? Math.min(0.25 + (e.strength || 0) * 0.04, 0.5)
+            ? Math.min(0.28 + (e.strength || 0) * 0.04, 0.55)
             : sameCluster
             ? Math.min(0.14 + (e.strength || 0) * 0.03, 0.35)
             : 0.08;
@@ -358,12 +383,12 @@ export function BrainVisualization({
           const opacity = isEmpty
             ? 0.18
             : dimmed
-            ? 0.06
+            ? 0.04
             : isConnectedEdge
-            ? 0.55
+            ? 0.6
             : sameCluster
-            ? 0.25
-            : 0.12;
+            ? 0.22
+            : 0.1;
 
           return (
             <line
@@ -372,7 +397,7 @@ export function BrainVisualization({
               stroke={edgeColor}
               strokeWidth={strokeW}
               opacity={opacity}
-              style={{ transition: "opacity 0.4s ease, stroke 0.4s ease, stroke-width 0.3s ease" }}
+              style={{ transition: `opacity ${HOVER_TRANSITION} ease, stroke ${HOVER_TRANSITION} ease, stroke-width ${HOVER_TRANSITION} ease` }}
             />
           );
         })}
@@ -389,7 +414,7 @@ export function BrainVisualization({
                 cx={node.x} cy={node.y} r={node.size * 3}
                 fill={clusterColors.glow[node.cluster]}
                 filter={`url(#glow-${node.cluster})`}
-                animate={{ opacity: dimmed ? [0, 0.03, 0] : [0, isHighlight ? 0.14 : 0.08, 0] }}
+                animate={{ opacity: dimmed ? [0, 0.02, 0] : [0, isHighlight ? 0.14 : 0.08, 0] }}
                 transition={{
                   duration: pulse.duration * 1.4,
                   ease: "easeInOut",
@@ -416,9 +441,8 @@ export function BrainVisualization({
 
           const fillColor = isEmpty
             ? clusterColors.nodeEmpty[node.cluster]
-            : clusterColors.node[node.cluster];
+            : `url(#node-grad-${node.cluster})`;
 
-          // Opacity ranges based on state
           const opacityRange = isEmpty
             ? [0.22, 0.38, 0.22]
             : isSelected
@@ -426,14 +450,13 @@ export function BrainVisualization({
             : isHovered
             ? [0.9, 1, 0.9]
             : dimmed
-            ? [0.1, 0.15, 0.1]
+            ? [0.08, 0.12, 0.08]
             : isConnected && pathActive
             ? [0.7, 0.9, 0.7]
             : isHighlight
             ? [0.6, 0.88, 0.6]
             : [0.32, 0.52, 0.32];
 
-          // Radius animation
           const radiusRange = isSelected
             ? [baseRadius * 1.5, baseRadius * 1.6, baseRadius * 1.5]
             : isHovered
@@ -449,7 +472,10 @@ export function BrainVisualization({
               fill={fillColor}
               stroke={isSelected ? clusterColors.node[node.cluster] : isHovered ? clusterColors.node[node.cluster] : "none"}
               strokeWidth={isSelected ? 0.4 : isHovered ? 0.3 : 0}
-              style={{ cursor: isEmpty ? "default" : "pointer" }}
+              style={{
+                cursor: isEmpty ? "default" : "pointer",
+                transition: `stroke ${HOVER_TRANSITION} ease, stroke-width ${HOVER_TRANSITION} ease`,
+              }}
               onMouseEnter={() => handleNodeEnter(node.id)}
               onMouseLeave={handleNodeLeave}
               onClick={(e) => { e.stopPropagation(); handleNodeClick(node.id); }}
@@ -467,7 +493,36 @@ export function BrainVisualization({
           );
         })}
 
-        {/* Hover tooltip — rich version */}
+        {/* Persistent labels for dominant nodes */}
+        {dominantNodes.map((node) => {
+          const dimmed = pathActive && !connectedNodeIds?.has(node.id);
+          const isHovered = hoveredNode === node.id;
+          const isSelected = selectedNode === node.id;
+          // Hide persistent label when tooltip is showing for this node
+          if (isHovered || isSelected) return null;
+          return (
+            <text
+              key={`label-${node.id}`}
+              x={node.x}
+              y={node.y + node.size * 2.2 + 2.5}
+              textAnchor="middle"
+              fontSize="1.8"
+              fontWeight="500"
+              fill={dimmed ? "hsl(250 10% 70%)" : "hsl(250 12% 58%)"}
+              opacity={dimmed ? 0.2 : 0.55}
+              style={{
+                pointerEvents: "none",
+                transition: `opacity ${HOVER_TRANSITION} ease, fill ${HOVER_TRANSITION} ease`,
+                textTransform: "capitalize",
+              }}
+              fontFamily="inherit"
+            >
+              {node.label}
+            </text>
+          );
+        })}
+
+        {/* Hover tooltip — refined */}
         {hoveredNode !== null && !selectedNode && !isEmpty && (() => {
           const node = nodeMap.get(hoveredNode);
           if (!node) return null;
@@ -488,28 +543,31 @@ export function BrainVisualization({
 
           const lines = [line1, line2, line3, line4].filter(Boolean);
           const maxLineLen = Math.max(...lines.map((l) => l.length));
-          const labelWidth = Math.max(maxLineLen * 0.95 + 3, 14);
-          const lineHeight = 2.6;
-          const boxHeight = lines.length * lineHeight + 2.5;
-          const tooltipY = node.y - node.size * 2 - boxHeight - 1;
+          const labelWidth = Math.max(maxLineLen * 0.95 + 4, 16);
+          const titleLineH = 3.2;
+          const bodyLineH = 2.8;
+          const padding = 3;
+          const boxHeight = titleLineH + (lines.length - 1) * bodyLineH + padding;
+          const tooltipY = node.y - node.size * 2 - boxHeight - 1.5;
           const clampedX = Math.max(labelWidth / 2 + 1, Math.min(99 - labelWidth / 2, node.x));
 
           return (
             <g style={{ pointerEvents: "none" }}>
               <rect
                 x={clampedX - labelWidth / 2} y={tooltipY}
-                width={labelWidth} height={boxHeight} rx={1.2}
-                fill="hsl(250 15% 16%)" opacity={0.92}
+                width={labelWidth} height={boxHeight} rx={1.4}
+                fill={tooltipColors.bg} opacity={0.94}
               />
               {lines.map((line, li) => (
                 <text
                   key={li}
-                  x={clampedX} y={tooltipY + 2.2 + li * lineHeight}
+                  x={clampedX} y={tooltipY + 2.6 + (li === 0 ? 0 : titleLineH + (li - 1) * bodyLineH)}
                   textAnchor="middle"
-                  fontSize={li === 0 ? "2.4" : "1.8"}
+                  fontSize={li === 0 ? "2.7" : "2.1"}
                   fontWeight={li === 0 ? "600" : "400"}
-                  fill={li === 0 ? "hsl(250 15% 95%)" : "hsl(250 15% 78%)"}
+                  fill={li === 0 ? tooltipColors.textPrimary : tooltipColors.textSecondary}
                   fontFamily="inherit"
+                  style={{ textTransform: li === 0 ? "capitalize" : "none" }}
                 >
                   {line}
                 </text>
@@ -582,13 +640,13 @@ function InsightPanel({
             ✕
           </button>
         </div>
-        <p className="text-[15px] font-serif font-semibold text-foreground mb-2 capitalize">
+        <p className="text-[16px] font-serif font-semibold text-foreground mb-2 capitalize">
           {node.label}
         </p>
-        <p className="text-[12px] text-foreground/70 leading-relaxed mb-2">
+        <p className="text-[13px] text-foreground/70 leading-relaxed mb-2">
           {insight.chain}
         </p>
-        <p className="text-[11px] text-muted-foreground/60 leading-snug mb-2">
+        <p className="text-[12px] text-muted-foreground/60 leading-snug mb-2">
           {insight.explanation}
         </p>
         <p className="text-[10px] text-muted-foreground/45 italic">
