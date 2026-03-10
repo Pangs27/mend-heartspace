@@ -233,6 +233,7 @@ export default function PatternsInsights() {
 
   // Unified signal graph data
   const { data: signalGraph, isLoading: graphLoading } = useUnifiedSignals(dateRange);
+  const signalCount = signalGraph?.signalCount ?? data?.signals?.length ?? 0;
   const hasEnoughData = signalCount >= 3;
 
   useEffect(() => {
