@@ -231,7 +231,8 @@ export default function PatternsInsights() {
   const [dateRange, setDateRangeRaw] = useState<DateRange>("30");
   const setDateRange = (v: DateRange) => { clearSnapshotCache(); setDateRangeRaw(v); };
 
-  const signalCount = data?.signals?.length ?? 0;
+  // Unified signal graph data
+  const { data: signalGraph, isLoading: graphLoading } = useUnifiedSignals(dateRange);
   const hasEnoughData = signalCount >= 3;
 
   useEffect(() => {
