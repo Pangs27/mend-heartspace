@@ -40,18 +40,28 @@ export default function CreatePostDialog({ open, onOpenChange, circleId, onCreat
   const handleSubmit = async () => {
     if (!title.trim() || !body.trim() || !user) return;
     setSubmitting(true);
-    const { error } = await supabase.from("circle_posts").insert({
+    const { data: postData, error } = await supabase.from("circle_posts").insert({
       circle_id: circleId,
       user_id: user.id,
       alias: generateAlias(),
       title: title.trim(),
       body: body.trim(),
       support_type: supportType,
-    });
+    }).select("id").single();
     setSubmitting(false);
     if (error) {
       toast.error("Could not share your post. Please try again.");
       return;
+    }
+
+    // Background signal extraction from post content
+    if (postData) {
+      extractSignal({
+        userId: user.id,
+        content: `${title.trim()}. ${body.trim()}`,
+        sourceType: "support_post",
+        sourceId: postData.id,
+      });
     }
     setTitle("");
     setBody("");
