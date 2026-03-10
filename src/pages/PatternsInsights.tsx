@@ -9,7 +9,7 @@ import { usePatternSignals, PatternCard as PatternCardType, MoodTimelineEntry } 
 import { useUserPhase } from "@/hooks/useUserPhase";
 import { getPatternsEmptyHeading, getPatternsEmptyBody, getStartConversationCTA, getAddCheckInCTA } from "@/lib/phaseCopy";
 import { MoodTimeline } from "@/components/patterns/MoodTimeline";
-import { BrainVisualization } from "@/components/patterns/BrainVisualization";
+import { BrainVisualization, type HoveredNodeInfo } from "@/components/patterns/BrainVisualization";
 import { InsightCards } from "@/components/patterns/InsightCards";
 import { DateRangeSelector, type DateRange } from "@/components/patterns/DateRangeSelector";
 import { computePatternSnapshot, clearSnapshotCache, type PatternSnapshot } from "@/lib/patternSnapshot";
@@ -225,6 +225,30 @@ function GraphLegend() {
   );
 }
 
+/* ── Dynamic interpretation builder ─────────────── */
+function buildInterpretation(info: HoveredNodeInfo): string {
+  const { label, cluster, connectedLabels, stabilizer } = info;
+  const name = label.charAt(0).toUpperCase() + label.slice(1);
+
+  if (connectedLabels.length === 0) {
+    return `${name} has appeared on its own — MEND is still listening for connections.`;
+  }
+
+  const companions = connectedLabels.slice(0, 3).join(" and ");
+
+  if (cluster === 0) {
+    // Emotional state
+    const base = `${name} often appears alongside ${companions}.`;
+    return stabilizer ? `${base} ${stabilizer.charAt(0).toUpperCase() + stabilizer.slice(1)} seems to help settle it.` : base;
+  }
+  if (cluster === 1) {
+    // Stabilizer
+    return `${name} tends to surface after emotionally tense moments, often near ${companions}.`;
+  }
+  // Context
+  return `${name} is a recurring theme, frequently linked to ${companions}.`;
+}
+
 /* ── Page ─────────────────────────────────────────── */
 export default function PatternsInsights() {
   const { data, isLoading } = usePatternSignals();
@@ -234,6 +258,7 @@ export default function PatternsInsights() {
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [dateRange, setDateRangeRaw] = useState<DateRange>("30");
   const setDateRange = (v: DateRange) => { clearSnapshotCache(); setDateRangeRaw(v); };
+  const [hoveredInfo, setHoveredInfo] = useState<HoveredNodeInfo | null>(null);
 
   // Unified signal graph data
   const { data: signalGraph, isLoading: graphLoading } = useUnifiedSignals(dateRange);
@@ -331,11 +356,37 @@ export default function PatternsInsights() {
                       highlightCluster={0}
                       graphNodes={signalGraph?.nodes}
                       graphEdges={signalGraph?.edges}
+                      onHoverNode={setHoveredInfo}
                     />
                     <GraphLegend />
-                    <p className="text-center text-[11px] text-muted-foreground/40 mt-3 tracking-wide">
-                      Reflecting your recent emotional rhythm
-                    </p>
+                    {/* Dynamic interpretation sentence */}
+                    <div className="h-8 mt-3 flex items-center justify-center">
+                      <AnimatePresence mode="wait">
+                        {hoveredInfo ? (
+                          <motion.p
+                            key={hoveredInfo.label}
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className="text-center text-[12px] text-muted-foreground/65 italic leading-snug"
+                          >
+                            {buildInterpretation(hoveredInfo)}
+                          </motion.p>
+                        ) : (
+                          <motion.p
+                            key="default"
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className="text-center text-[11px] text-muted-foreground/40 tracking-wide"
+                          >
+                            Reflecting your recent emotional rhythm
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   </div>
                 </motion.section>
               )}
