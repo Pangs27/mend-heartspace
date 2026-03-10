@@ -8,6 +8,7 @@ interface Node {
   y: number;
   cluster: number;
   size: number;
+  label: string;
 }
 
 interface Edge {
