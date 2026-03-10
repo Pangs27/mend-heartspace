@@ -9,7 +9,7 @@ import { usePatternSignals, PatternCard as PatternCardType, MoodTimelineEntry } 
 import { useUserPhase } from "@/hooks/useUserPhase";
 import { getPatternsEmptyHeading, getPatternsEmptyBody, getStartConversationCTA, getAddCheckInCTA } from "@/lib/phaseCopy";
 import { MoodTimeline } from "@/components/patterns/MoodTimeline";
-import { BrainVisualization } from "@/components/patterns/BrainVisualization";
+import { BrainVisualization, type HoveredNodeInfo } from "@/components/patterns/BrainVisualization";
 import { InsightCards } from "@/components/patterns/InsightCards";
 import { DateRangeSelector, type DateRange } from "@/components/patterns/DateRangeSelector";
 import { computePatternSnapshot, clearSnapshotCache, type PatternSnapshot } from "@/lib/patternSnapshot";
