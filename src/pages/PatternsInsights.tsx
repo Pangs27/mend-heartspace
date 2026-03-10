@@ -14,6 +14,7 @@ import { InsightCards } from "@/components/patterns/InsightCards";
 import { DateRangeSelector, type DateRange } from "@/components/patterns/DateRangeSelector";
 import { computePatternSnapshot, clearSnapshotCache, type PatternSnapshot } from "@/lib/patternSnapshot";
 import { useAuth } from "@/hooks/useAuth";
+import { useUnifiedSignals } from "@/hooks/useUnifiedSignals";
 
 const patternIcons: Record<string, typeof Heart> = {
   emotion: Heart,
