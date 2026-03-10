@@ -114,9 +114,9 @@ function buildGraph(signals: EnrichedSignal[]): SignalGraph {
 
     // Cross-cluster co-occurrences for edges
     const emotionKey = getEmotionNodeLabel(s.primary_emotion);
-    if (ctx && ctx !== "other") addCoOccurrence(coOccurrence, `e:${emotionKey}`, `c:${ctx}`);
-    if (s.theme) addCoOccurrence(coOccurrence, `e:${emotionKey}`, `c:${s.theme.toLowerCase().trim()}`);
-    if (s.stabilizer) addCoOccurrence(coOccurrence, `e:${emotionKey}`, `s:${s.stabilizer.toLowerCase().trim()}`);
+    if (normalizedCtx && normalizedCtx !== "other") addCoOccurrence(coOccurrence, `e:${emotionKey}`, `c:${normalizedCtx}`);
+    if (s.theme) addCoOccurrence(coOccurrence, `e:${emotionKey}`, `c:${normalizeLabel(s.theme)}`);
+    if (s.stabilizer) addCoOccurrence(coOccurrence, `e:${emotionKey}`, `s:${normalizeLabel(s.stabilizer)}`);
   }
 
   // Build nodes with normalized weights
