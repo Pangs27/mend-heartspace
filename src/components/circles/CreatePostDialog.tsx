@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { generateAlias } from "@/lib/aliasGenerator";
+import { extractSignal } from "@/lib/extractSignal";
 import { toast } from "sonner";
 
 const fallbackPrompts = [
