@@ -275,7 +275,7 @@ export default function PatternsInsights() {
           </motion.header>
 
           {/* ── Content ────────────────────────────── */}
-          {isLoading || snapshotLoading ? (
+          {isLoading || snapshotLoading || graphLoading ? (
             <LoadingState />
           ) : !hasEnoughData ? (
             <div className="space-y-10 mt-2">
