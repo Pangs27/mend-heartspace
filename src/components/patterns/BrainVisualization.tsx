@@ -592,7 +592,48 @@ export function BrainVisualization({
           );
         })}
 
-        {/* Hover tooltip — HTML foreignObject for proper wrapping */}
+        {/* Onboarding spotlight animation */}
+        <AnimatePresence>
+          {showOnboarding && onboardingNode && (
+            <>
+              {/* Expanding ring */}
+              <motion.circle
+                cx={onboardingNode.x}
+                cy={onboardingNode.y}
+                r={onboardingNode.size * 2.5}
+                fill="none"
+                stroke={`url(#node-grad-${onboardingNode.cluster})`}
+                strokeWidth="0.3"
+                initial={{ r: onboardingNode.size * 1.5, opacity: 0 }}
+                animate={{
+                  r: [onboardingNode.size * 2, onboardingNode.size * 3.5, onboardingNode.size * 2],
+                  opacity: [0, 0.45, 0],
+                }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 2, ease: "easeInOut", repeat: Infinity }}
+                style={{ pointerEvents: "none" }}
+              />
+              {/* Callout label */}
+              <motion.text
+                x={onboardingNode.x}
+                y={onboardingNode.y - onboardingNode.size * 3 - 2}
+                textAnchor="middle"
+                fontSize="2"
+                fontWeight="500"
+                fontFamily={FONT_STACK}
+                fill="hsl(var(--muted-foreground))"
+                style={{ pointerEvents: "none", textTransform: "capitalize" }}
+                initial={{ opacity: 0, y: onboardingNode.y - onboardingNode.size * 2 }}
+                animate={{ opacity: 0.7, y: onboardingNode.y - onboardingNode.size * 3 - 2 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.6, ease: "easeOut", delay: 0.3 }}
+              >
+                {onboardingNode.label}
+              </motion.text>
+            </>
+          )}
+        </AnimatePresence>
+
         {hoveredNode !== null && !selectedNode && !isEmpty && (() => {
           const node = nodeMap.get(hoveredNode);
           if (!node) return null;
