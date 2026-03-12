@@ -53,71 +53,6 @@ const Reveal = ({ children, delay = 0, className = "" }: { children: React.React
   </motion.div>
 );
 
-/* ── Product frame with lavender glow ── */
-function ProductFrame({ src, alt, larger }: { src: string; alt: string; larger?: boolean }) {
-  return (
-    <div className="relative">
-      {/* Radial lavender glow */}
-      <div
-        className="absolute -inset-8 rounded-[28px] pointer-events-none"
-        style={{
-          background: "radial-gradient(ellipse at center, hsl(270 50% 85% / 0.10) 0%, transparent 70%)",
-        }}
-      />
-      <div
-        className={`relative rounded-[20px] p-3 bg-card shadow-card overflow-hidden border border-border/50 ${
-          larger ? "lg:scale-[1.04] lg:origin-top-left" : ""
-        }`}
-      >
-        <img
-          src={src}
-          alt={alt}
-          className="w-full h-auto rounded-[12px]"
-          loading="lazy"
-        />
-      </div>
-    </div>
-  );
-}
-
-/* ── Step row (two-column) ── */
-function StepRow({
-  title,
-  text,
-  imageSrc,
-  imageAlt,
-  reverse,
-  larger,
-  delay = 0,
-}: {
-  title: string;
-  text: React.ReactNode;
-  imageSrc: string;
-  imageAlt: string;
-  reverse?: boolean;
-  larger?: boolean;
-  delay?: number;
-}) {
-  return (
-    <div className={`flex flex-col ${reverse ? "lg:flex-row-reverse" : "lg:flex-row"} items-center gap-10 lg:gap-16`}>
-      {/* Text column */}
-      <Reveal delay={delay} className="w-full lg:w-[420px] lg:shrink-0">
-        <h3 className="text-2xl md:text-3xl font-serif font-medium text-foreground mb-4">
-          {title}
-        </h3>
-        <div className="text-muted-foreground text-[16px] leading-relaxed space-y-3">
-          {text}
-        </div>
-      </Reveal>
-
-      {/* Image column */}
-      <Reveal delay={delay + 0.1} className="w-full lg:flex-1 lg:max-w-[560px]">
-        <ProductFrame src={imageSrc} alt={imageAlt} larger={larger} />
-      </Reveal>
-    </div>
-  );
-}
-
 export default function Home() {
   return (
     <Layout>
@@ -165,85 +100,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── SECTION 2 — Product Storytelling ─── */}
-      <section className="py-28 lg:py-40 bg-background">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-[1080px]">
-          {/* Section header */}
-          <Reveal className="text-center mb-20 lg:mb-28">
-            <h2 className="text-3xl md:text-4xl font-serif font-medium text-foreground mb-4">
-              How MEND helps you understand yourself
-            </h2>
-            <p className="text-muted-foreground text-lg max-w-lg mx-auto">
-              Reflection becomes clarity when patterns begin to appear.
-            </p>
-          </Reveal>
-
-          {/* Steps */}
-          <div className="space-y-24 lg:space-y-36">
-            {/* Step 1 — Reflect */}
-            <StepRow
-              title="Reflect"
-              text={
-                <>
-                  <p>Speak freely about what you are experiencing.</p>
-                  <p>MEND listens without judgment and helps you explore what is beneath the surface.</p>
-                </>
-              }
-              imageSrc={reflectionImg}
-              imageAlt="MEND AI companion conversation showing empathetic reflection"
-            />
-
-            {/* Step 2 — Journal */}
-            <StepRow
-              title="Journal"
-              text={
-                <>
-                  <p>Some thoughts do not need responses.</p>
-                  <p>The journal gives you a quiet place to put things down exactly as they are.</p>
-                </>
-              }
-              imageSrc={journalImg}
-              imageAlt="MEND journal interface with prompts and recent entries"
-              reverse
-              delay={0.05}
-            />
-
-            {/* Step 3 — Patterns */}
-            <StepRow
-              title="Patterns and insights"
-              text={
-                <>
-                  <p>Over time MEND begins to notice emotional patterns across your reflections.</p>
-                  <p>What feels confusing in the moment becomes clearer when seen across time.</p>
-                </>
-              }
-              imageSrc={patternsImg}
-              imageAlt="MEND emotional pattern map visualization"
-              larger
-              delay={0.05}
-            />
-
-            {/* Step 4 — Quiet Spaces */}
-            <StepRow
-              title="Quiet Spaces"
-              text={
-                <>
-                  <p>Some things are easier to carry together.</p>
-                  <p>
-                    You can listen.<br />
-                    You can share.<br />
-                    You can stay anonymous.
-                  </p>
-                </>
-              }
-              imageSrc={supportGroupsImg}
-              imageAlt="MEND Quiet Spaces support circles for shared reflection"
-              reverse
-              delay={0.05}
-            />
-          </div>
-        </div>
-      </section>
+      {/* ─── SECTION 2 — Scroll Storytelling ─── */}
+      <ScrollStorytelling />
 
       {/* ─── SECTION 3 — Emotional Close ─── */}
       <section className="py-28 lg:py-36 bg-background">
