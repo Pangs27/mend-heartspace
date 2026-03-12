@@ -237,6 +237,7 @@ export function BrainVisualization({
   const pulse = pulseConfig[baselineState];
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [hasInteracted, setHasInteracted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const nodeMap = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
@@ -330,8 +331,9 @@ export function BrainVisualization({
     isTouchDevice.current = true;
     if (!isEmpty) {
       setHoveredNode((prev) => (prev === nodeId ? null : nodeId));
+      if (!hasInteracted) setHasInteracted(true);
     }
-  }, [isEmpty]);
+  }, [isEmpty, hasInteracted]);
 
   const selectedLayoutNode = selectedNode ? nodeMap.get(selectedNode) : null;
   const insight = selectedLayoutNode ? getMockInsight(selectedLayoutNode) : null;
@@ -346,6 +348,22 @@ export function BrainVisualization({
 
   return (
     <div ref={containerRef} className="relative">
+      {/* Mobile tap hint */}
+      {hasRealData && (
+        <AnimatePresence>
+          {!hasInteracted && (
+            <motion.p
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 0.6, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="absolute top-2 left-0 right-0 text-center text-[11px] text-muted-foreground/50 italic pointer-events-none z-10 md:hidden"
+            >
+              Tap a node to explore
+            </motion.p>
+          )}
+        </AnimatePresence>
+      )}
       <motion.svg
         viewBox="0 0 100 100"
         className="w-full h-full"
