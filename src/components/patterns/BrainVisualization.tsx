@@ -238,6 +238,7 @@ export function BrainVisualization({
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const nodeMap = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
