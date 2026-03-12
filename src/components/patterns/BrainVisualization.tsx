@@ -341,7 +341,25 @@ export function BrainVisualization({
 
   const pathActive = !!connectedNodeIds && !selectedNode;
 
-  /* Dominant nodes get persistent labels (weight > 0.6) */
+  /* Onboarding: pick the heaviest node to spotlight */
+  const onboardingNode = useMemo(() => {
+    if (isEmpty || !hasRealData || nodes.length === 0) return null;
+    return nodes.reduce((best, n) => (n.weight > best.weight ? n : best), nodes[0]);
+  }, [nodes, isEmpty, hasRealData]);
+
+  /* Auto-dismiss onboarding after 3.5s or on any interaction */
+  useEffect(() => {
+    if (onboardingDone || !onboardingNode) return;
+    const timer = setTimeout(() => setOnboardingDone(true), 3500);
+    return () => clearTimeout(timer);
+  }, [onboardingDone, onboardingNode]);
+
+  // Dismiss onboarding on any hover/tap
+  useEffect(() => {
+    if (hoveredNode || selectedNode) setOnboardingDone(true);
+  }, [hoveredNode, selectedNode]);
+
+  const showOnboarding = hasRealData && !onboardingDone && !!onboardingNode;
   const dominantNodes = useMemo(() => {
     if (isEmpty) return [];
     return nodes.filter((n) => n.weight >= 0.6 && n.label !== "...");
