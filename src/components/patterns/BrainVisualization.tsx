@@ -331,8 +331,9 @@ export function BrainVisualization({
     isTouchDevice.current = true;
     if (!isEmpty) {
       setHoveredNode((prev) => (prev === nodeId ? null : nodeId));
+      if (!hasInteracted) setHasInteracted(true);
     }
-  }, [isEmpty]);
+  }, [isEmpty, hasInteracted]);
 
   const selectedLayoutNode = selectedNode ? nodeMap.get(selectedNode) : null;
   const insight = selectedLayoutNode ? getMockInsight(selectedLayoutNode) : null;
