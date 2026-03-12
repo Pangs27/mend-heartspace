@@ -351,6 +351,7 @@ export function BrainVisualization({
         className="w-full h-full"
         aria-label="Emotional pattern visualization"
         onClick={handleBgClick}
+        onTouchStart={() => { isTouchDevice.current = true; setHoveredNode(null); }}
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
