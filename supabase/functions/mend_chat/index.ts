@@ -29,7 +29,12 @@ function detectCrisis(text: string): boolean {
 function classifyBucket(userText: string, mode: string): string {
   if (detectCrisis(userText)) return "Crisis";
 
-  const lower = userText.toLowerCase();
+  const lower = userText.toLowerCase().trim();
+  // Detect small talk / casual greetings
+  if (/^(hi|hello|hey|morning|evening|how are you|how's it going|how are things|sup|yo|good morning|good evening|good afternoon|good night|howdy|what's up|whats up|how ya doin|hi there|hello there)(\?|\!|\.)?$/i.test(lower)) {
+    return "Small Talk";
+  }
+
   const allowed = MODE_BUCKETS[mode] || MODE_BUCKETS["Reflect with me"];
 
   const signals: Record<string, number> = {};
@@ -69,6 +74,12 @@ function classifyBucket(userText: string, mode: string): string {
   for (const [bucket, score] of Object.entries(signals)) {
     if (score > bestScore) { best = bucket; bestScore = score; }
   }
+
+  // If no strong signals found and it's short, check if it's likely small talk
+  if (bestScore === 0 && lower.length < 50 && /hi|hello|hey|morning|evening|how are you|how's it going|how are things|sup|yo|howdy|what's up|whats up|how ya doin/i.test(lower)) {
+    return "Small Talk";
+  }
+
   return best;
 }
 
@@ -243,9 +254,13 @@ function formatMemoryContext(pack: MemoryPack): string {
 /* ── Pass A: Draft system prompt ── */
 function buildDraftPrompt(mode: string, bucket: string, userState: any | null, conversationSummary: string | null, memoryPack: MemoryPack | null, memoryMoment?: string): string {
   const modeTemplate = MODE_TEMPLATES[mode] || MODE_TEMPLATES["Reflect with me"];
-  const bucketContext = bucket === "Crisis"
-    ? "CRISIS OVERRIDE: Gently acknowledge what they shared. Encourage reaching out to someone they trust or a helpline. Be present, not prescriptive. Keep your response brief and warm."
-    : `Communication bucket: ${bucket}`;
+  let bucketContext = `Communication bucket: ${bucket}`;
+  
+  if (bucket === "Crisis") {
+    bucketContext = "CRISIS OVERRIDE: Gently acknowledge what they shared. Encourage reaching out to someone they trust or a helpline. Be present, not prescriptive. Keep your response brief and warm.";
+  } else if (bucket === "Small Talk") {
+    bucketContext = "SMALL TALK OVERRIDE: The user is engaging in casual greeting or small talk. Keep it brief, warm, and natural — like a friend. Acknowledge the greeting and wait for them to share more. Do NOT offer professional reflection or emotional layering here.";
+  }
 
   let userContext = "";
   if (userState) {
@@ -276,14 +291,14 @@ function buildDraftPrompt(mode: string, bucket: string, userState: any | null, c
 
   const openerIndex = Math.floor(Math.random() * VARIATION_OPENERS.length);
 
-  return `You are MEND, a reflective emotional companion. Not a therapist, coach, or authority.
-
-${modeTemplate}
-
-${bucketContext}
-${userContext}${convContext}${memoryContext}${memoryMomentContext}
-
-GLOBAL CRAFT REQUIREMENTS (apply to every response):
+  const requirements = bucket === "Small Talk"
+    ? `GLOBAL SMALL TALK REQUIREMENTS (apply to this greeting/casual chat):
+- Maximum 30 words. No paragraphs.
+- Be casual, brief, and friendly.
+- Just acknowledge the greeting naturally (e.g., "Hi there! Good to see you. How are you doing?").
+- NO therapeutic reflections, NO emotional layering, NO naming of surface/protective emotions.
+- Do NOT be overly poetic or formal.`
+    : `GLOBAL CRAFT REQUIREMENTS (apply to every response):
 - Maximum 120 words. Exactly 3 short parts.
 - Include: 1 surface emotion, 1 protective emotion (if applicable), 1 inferred emotional need (safety, clarity, reassurance, autonomy, connection, or rest).
 - Reference at least 1 concrete phrase from the user's message.
@@ -297,7 +312,16 @@ ${mode === "Just listen" || mode === "Challenge me gently" ? "- Do NOT ask any q
 - Do not introduce metaphors or theories unless the user uses them first.
 - Never give advice, solutions, action items, or next steps.
 - Never use diagnostic or clinical terms.
-- Never present yourself as an expert or authority.
+- Never present yourself as an expert or authority.`;
+
+  return `You are MEND, a reflective emotional companion. Not a therapist, coach, or authority.
+
+${modeTemplate}
+
+${bucketContext}
+${userContext}${convContext}${memoryContext}${memoryMomentContext}
+
+${requirements}
 
 If unsure, default to mirroring and asking "what do you notice?".`;
 }
@@ -328,6 +352,25 @@ function pickRandom<T>(arr: readonly T[], exclude?: T): T {
 
 /* ── Pass B: Premium rewrite prompt ── */
 function buildRewritePrompt(mode: string, bucket: string, prevFormulationStyle?: string | null, prevQuestionType?: string | null): { prompt: string; formulationStyle: string; questionType: string } {
+  if (bucket === "Small Talk") {
+    return {
+      formulationStyle: "casual_acknowledgment",
+      questionType: "none",
+      prompt: `You are MEND, a warm and friendly companion. The user is engaging in casual small talk or a greeting.
+
+Rewrite the draft to be short, warm, and natural — like a friend texting. 
+
+Rules:
+1. Maximum 30 words.
+2. NO therapy-speak. NO deep reflection. NO emotional layering.
+3. Be friendly and conversational.
+4. If they asked how you are, respond and ask them how they are doing.
+5. Do NOT use metaphors or formal language.
+
+The final output must be the rewritten response only.`
+    };
+  }
+
   const formulationStyle = pickRandom(FORMULATION_STYLES, prevFormulationStyle as any);
   const questionType = pickRandom(QUESTION_TYPES, prevQuestionType as any);
 
@@ -505,7 +548,7 @@ async function streamAI(apiKey: string, systemPrompt: string, messages: any[]): 
 }
 
 /* ── Premium constraint validation ── */
-function validatePremiumConstraints(text: string): { passed: boolean; failures: string[] } {
+function validatePremiumConstraints(text: string, bucket?: string): { passed: boolean; failures: string[] } {
   const failures: string[] = [];
   const lower = text.toLowerCase();
 
@@ -515,14 +558,18 @@ function validatePremiumConstraints(text: string): { passed: boolean; failures: 
   }
 
   const wordCount = text.split(/\s+/).filter(Boolean).length;
-  if (wordCount > 130) failures.push(`Over word limit: ${wordCount} words`);
+  const maxWords = bucket === "Small Talk" ? 50 : 130;
+  if (wordCount > maxWords) failures.push(`Over word limit: ${wordCount} words`);
 
-  const questionCount = (text.match(/\?/g) || []).length;
-  if (questionCount === 0) failures.push("No question found");
-  if (questionCount > 2) failures.push(`Too many questions: ${questionCount}`);
+  if (bucket !== "Small Talk") {
+    const questionCount = (text.match(/\?/g) || []).length;
+    if (questionCount === 0) failures.push("No question found");
+    if (questionCount > 2) failures.push(`Too many questions: ${questionCount}`);
+  }
 
   const paragraphs = text.split(/\n\n+/).filter(s => s.trim());
-  if (paragraphs.length > 4) failures.push(`Too many parts: ${paragraphs.length}`);
+  const maxParts = bucket === "Small Talk" ? 2 : 4;
+  if (paragraphs.length > maxParts) failures.push(`Too many parts: ${paragraphs.length}`);
 
   return { passed: failures.length === 0, failures };
 }
@@ -732,7 +779,7 @@ serve(async (req) => {
     }
 
     // ── Validate + Debug log ──
-    const validation = validatePremiumConstraints(draftResponse);
+    const validation = validatePremiumConstraints(draftResponse, bucket);
     console.log("[mend_chat]", JSON.stringify({
       experience_mode: mode,
       communication_bucket: bucket,
