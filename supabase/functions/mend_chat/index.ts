@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Expose-Headers": "X-Communication-Bucket, X-Formulation-Style, X-Question-Type",
 };
 
@@ -17,8 +18,15 @@ const MODE_BUCKETS: Record<string, string[]> = {
 };
 
 const CRISIS_KEYWORDS = [
-  "kill myself", "suicide", "end it all", "want to die", "self harm",
-  "self-harm", "hurt myself", "not worth living", "better off dead",
+  "kill myself",
+  "suicide",
+  "end it all",
+  "want to die",
+  "self harm",
+  "self-harm",
+  "hurt myself",
+  "not worth living",
+  "better off dead",
 ];
 
 function detectCrisis(text: string): boolean {
@@ -41,23 +49,28 @@ function classifyBucket(userText: string, mode: string): string {
   for (const b of allowed) signals[b] = 0;
 
   if (allowed.includes("Venting")) {
-    if (/i (just )?need to (let|get) (this|it) out|vent|scream|ugh|frustrated|angry|furious|sick of/i.test(lower)) signals["Venting"] += 3;
+    if (/i (just )?need to (let|get) (this|it) out|vent|scream|ugh|frustrated|angry|furious|sick of/i.test(lower))
+      signals["Venting"] += 3;
     if (/can't take|had enough|exhausted|done with/i.test(lower)) signals["Venting"] += 2;
   }
   if (allowed.includes("Reassurance")) {
-    if (/am i (wrong|okay|normal|overreacting)|is (this|it) (okay|normal)|tell me|reassure|worried/i.test(lower)) signals["Reassurance"] += 3;
+    if (/am i (wrong|okay|normal|overreacting)|is (this|it) (okay|normal)|tell me|reassure|worried/i.test(lower))
+      signals["Reassurance"] += 3;
     if (/scared|afraid|anxious|nervous/i.test(lower)) signals["Reassurance"] += 2;
   }
   if (allowed.includes("Emotional Processing")) {
-    if (/feel(ing)?|emotion|sad|grief|loss|miss|heart|heavy|numb|confused about (my|how i) feel/i.test(lower)) signals["Emotional Processing"] += 3;
+    if (/feel(ing)?|emotion|sad|grief|loss|miss|heart|heavy|numb|confused about (my|how i) feel/i.test(lower))
+      signals["Emotional Processing"] += 3;
     if (/overwhelm|cry|tears|hurt/i.test(lower)) signals["Emotional Processing"] += 2;
   }
   if (allowed.includes("Pattern Reflection")) {
-    if (/always|again|keep doing|pattern|cycle|repeat|every time|same thing/i.test(lower)) signals["Pattern Reflection"] += 3;
+    if (/always|again|keep doing|pattern|cycle|repeat|every time|same thing/i.test(lower))
+      signals["Pattern Reflection"] += 3;
     if (/notice|realize|wonder why i/i.test(lower)) signals["Pattern Reflection"] += 2;
   }
   if (allowed.includes("Seeking Perspective")) {
-    if (/perspective|different way|another angle|think about this|make sense|understand/i.test(lower)) signals["Seeking Perspective"] += 3;
+    if (/perspective|different way|another angle|think about this|make sense|understand/i.test(lower))
+      signals["Seeking Perspective"] += 3;
     if (/what do you think|how (should|would|do)/i.test(lower)) signals["Seeking Perspective"] += 2;
   }
   if (allowed.includes("Decision Making")) {
@@ -65,14 +78,18 @@ function classifyBucket(userText: string, mode: string): string {
     if (/pros and cons|trade.?off|either.*or/i.test(lower)) signals["Decision Making"] += 2;
   }
   if (allowed.includes("Practical Action")) {
-    if (/what (can|should) i do|next step|plan|action|strategy|how to (handle|deal|manage|fix|solve)/i.test(lower)) signals["Practical Action"] += 3;
+    if (/what (can|should) i do|next step|plan|action|strategy|how to (handle|deal|manage|fix|solve)/i.test(lower))
+      signals["Practical Action"] += 3;
     if (/advice|suggestion|recommend|tip/i.test(lower)) signals["Practical Action"] += 2;
   }
 
   let best = allowed[0];
   let bestScore = 0;
   for (const [bucket, score] of Object.entries(signals)) {
-    if (score > bestScore) { best = bucket; bestScore = score; }
+    if (score > bestScore) {
+      best = bucket;
+      bestScore = score;
+    }
   }
 
   // If no strong signals found and it's short, check if it's likely small talk
@@ -205,13 +222,27 @@ async function getMemoryPack(supabase: any, userId: string): Promise<MemoryPack 
 
     for (const m of memories) {
       switch (m.memory_type) {
-        case "recurring_theme": pack.recurring_themes.push(m.content); break;
-        case "trigger": pack.triggers.push(m.content); break;
-        case "coping_pattern": pack.coping_patterns.push(m.content); break;
-        case "preference": pack.preferences.push(m.content); break;
-        case "goal": pack.goals.push(m.content); break;
-        case "boundary": pack.boundaries.push(m.content); break;
-        case "relationship_context": pack.recurring_themes.push(m.content); break;
+        case "recurring_theme":
+          pack.recurring_themes.push(m.content);
+          break;
+        case "trigger":
+          pack.triggers.push(m.content);
+          break;
+        case "coping_pattern":
+          pack.coping_patterns.push(m.content);
+          break;
+        case "preference":
+          pack.preferences.push(m.content);
+          break;
+        case "goal":
+          pack.goals.push(m.content);
+          break;
+        case "boundary":
+          pack.boundaries.push(m.content);
+          break;
+        case "relationship_context":
+          pack.recurring_themes.push(m.content);
+          break;
       }
     }
 
@@ -239,12 +270,14 @@ async function getMemoryPack(supabase: any, userId: string): Promise<MemoryPack 
 function formatMemoryContext(pack: MemoryPack): string {
   const lines: string[] = ["User Memory Context:"];
 
-  if (pack.recurring_themes.length) lines.push(`Recurring themes:\n${pack.recurring_themes.map(t => `- ${t}`).join("\n")}`);
-  if (pack.triggers.length) lines.push(`Common triggers:\n${pack.triggers.map(t => `- ${t}`).join("\n")}`);
-  if (pack.coping_patterns.length) lines.push(`Helpful coping:\n${pack.coping_patterns.map(t => `- ${t}`).join("\n")}`);
-  if (pack.goals.length) lines.push(`Goals:\n${pack.goals.map(t => `- ${t}`).join("\n")}`);
-  if (pack.boundaries.length) lines.push(`Boundaries:\n${pack.boundaries.map(t => `- ${t}`).join("\n")}`);
-  if (pack.preferences.length) lines.push(`Preferences:\n${pack.preferences.map(t => `- ${t}`).join("\n")}`);
+  if (pack.recurring_themes.length)
+    lines.push(`Recurring themes:\n${pack.recurring_themes.map((t) => `- ${t}`).join("\n")}`);
+  if (pack.triggers.length) lines.push(`Common triggers:\n${pack.triggers.map((t) => `- ${t}`).join("\n")}`);
+  if (pack.coping_patterns.length)
+    lines.push(`Helpful coping:\n${pack.coping_patterns.map((t) => `- ${t}`).join("\n")}`);
+  if (pack.goals.length) lines.push(`Goals:\n${pack.goals.map((t) => `- ${t}`).join("\n")}`);
+  if (pack.boundaries.length) lines.push(`Boundaries:\n${pack.boundaries.map((t) => `- ${t}`).join("\n")}`);
+  if (pack.preferences.length) lines.push(`Preferences:\n${pack.preferences.map((t) => `- ${t}`).join("\n")}`);
   if (pack.recent_trend) lines.push(`Recent trend: ${pack.recent_trend}`);
 
   const result = lines.join("\n\n");
@@ -252,7 +285,14 @@ function formatMemoryContext(pack: MemoryPack): string {
 }
 
 /* ── Pass A: Draft system prompt ── */
-function buildDraftPrompt(mode: string, bucket: string, userState: any | null, conversationSummary: string | null, memoryPack: MemoryPack | null, memoryMoment?: string): string {
+function buildDraftPrompt(
+  mode: string,
+  bucket: string,
+  userState: any | null,
+  conversationSummary: string | null,
+  memoryPack: MemoryPack | null,
+  memoryMoment?: string,
+): string {
   const modeTemplate = MODE_TEMPLATES[mode] || MODE_TEMPLATES["Reflect with me"];
   let bucketContext = `Communication bucket: ${bucket}`;
   
@@ -265,13 +305,17 @@ function buildDraftPrompt(mode: string, bucket: string, userState: any | null, c
   let userContext = "";
   if (userState) {
     const parts: string[] = [];
-    if (userState.top_emotions?.length) parts.push(`Their recent emotional landscape includes: ${userState.top_emotions.join(", ")}.`);
-    if (userState.top_contexts?.length) parts.push(`Themes they've been reflecting on: ${userState.top_contexts.join(", ")}.`);
+    if (userState.top_emotions?.length)
+      parts.push(`Their recent emotional landscape includes: ${userState.top_emotions.join(", ")}.`);
+    if (userState.top_contexts?.length)
+      parts.push(`Themes they've been reflecting on: ${userState.top_contexts.join(", ")}.`);
     if (userState.intensity_trend === "rising") parts.push("Their emotional intensity has been increasing recently.");
     else if (userState.intensity_trend === "easing") parts.push("Things seem to be settling a bit for them lately.");
     if (userState.recurring_themes?.length) parts.push(`Recurring themes: ${userState.recurring_themes.join(", ")}.`);
-    if (userState.time_bucket_pattern) parts.push(`They tend to reflect most during the ${userState.time_bucket_pattern}.`);
-    if (parts.length) userContext = `\n\nUser context (reference naturally, never quote stats or say "I noticed a pattern"):\n${parts.join("\n")}`;
+    if (userState.time_bucket_pattern)
+      parts.push(`They tend to reflect most during the ${userState.time_bucket_pattern}.`);
+    if (parts.length)
+      userContext = `\n\nUser context (reference naturally, never quote stats or say "I noticed a pattern"):\n${parts.join("\n")}`;
   }
 
   let convContext = "";
@@ -336,17 +380,10 @@ const FORMULATION_STYLES = [
   "gentle_hypothesis",
 ] as const;
 
-const QUESTION_TYPES = [
-  "somatic",
-  "belief",
-  "boundary",
-  "value",
-  "relational",
-  "future",
-] as const;
+const QUESTION_TYPES = ["somatic", "belief", "boundary", "value", "relational", "future"] as const;
 
 function pickRandom<T>(arr: readonly T[], exclude?: T): T {
-  const filtered = exclude ? arr.filter(x => x !== exclude) : [...arr];
+  const filtered = exclude ? arr.filter((x) => x !== exclude) : [...arr];
   return filtered[Math.floor(Math.random() * filtered.length)];
 }
 
@@ -395,13 +432,17 @@ PREVIOUS_STYLE: ${prevFormulationStyle || "none"}
 
 Do not reuse the previous style.
 
-${noQuestionMode ? "" : `The assigned question type is:
+${
+  noQuestionMode
+    ? ""
+    : `The assigned question type is:
 QUESTION_TYPE: ${questionType}
 
 The previous question type was:
 PREVIOUS_QUESTION_TYPE: ${prevQuestionType || "none"}
 
-Do not reuse the previous question type.`}
+Do not reuse the previous question type.`
+}
 
 Response rules:
 1. Maximum 120 words.
@@ -435,7 +476,9 @@ Describe what you are noticing with steady, grounded language.
 gentle_hypothesis:
 Offer a soft interpretation using uncertain language once, not repeatedly.
 
-${!noQuestionMode ? `Question type guidance:
+${
+  !noQuestionMode
+    ? `Question type guidance:
 
 somatic:
 Ask about physical sensation in the body.
@@ -453,7 +496,9 @@ relational:
 Ask how they interpret the other person's behavior.
 
 future:
-Ask what would feel different next time.` : ""}
+Ask what would feel different next time.`
+    : ""
+}
 
 ${bucket === "Crisis" ? "CRISIS: Gently acknowledge. Encourage reaching out to someone trusted or a helpline. Brief and warm." : ""}
 
@@ -502,10 +547,7 @@ function buildSnapshotPrompt(): string {
 
 /* ── Supabase helper ── */
 function getSupabaseAdmin() {
-  return createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 }
 
 /* ── Non-streaming AI call ── */
@@ -578,7 +620,7 @@ function validatePremiumConstraints(text: string, bucket?: string): { passed: bo
 function contentSimilarity(a: string, b: string): number {
   const wordsA = new Set(a.toLowerCase().split(/\s+/));
   const wordsB = new Set(b.toLowerCase().split(/\s+/));
-  const intersection = [...wordsA].filter(w => wordsB.has(w)).length;
+  const intersection = [...wordsA].filter((w) => wordsB.has(w)).length;
   const union = new Set([...wordsA, ...wordsB]).size;
   return union === 0 ? 0 : intersection / union;
 }
@@ -591,7 +633,7 @@ async function extractAndStoreMemories(
   userMessage: string,
   assistantResponse: string,
   memoryPack: MemoryPack | null,
-  messageId?: string
+  messageId?: string,
 ) {
   try {
     const extractionPrompt = buildMemoryExtractionPrompt();
@@ -617,10 +659,23 @@ async function extractAndStoreMemories(
     for (const item of parsed.add.slice(0, 3)) {
       if (!item.memory_type || !item.content || item.content.length > 120) continue;
 
-      const validTypes = ["preference", "recurring_theme", "trigger", "coping_pattern", "relationship_context", "goal", "boundary"];
+      const validTypes = [
+        "preference",
+        "recurring_theme",
+        "trigger",
+        "coping_pattern",
+        "relationship_context",
+        "goal",
+        "boundary",
+      ];
       if (!validTypes.includes(item.memory_type)) continue;
 
-      const safetyLevel = item.safety_level === "crisis_related" ? "crisis_related" : item.safety_level === "sensitive" ? "sensitive" : "normal";
+      const safetyLevel =
+        item.safety_level === "crisis_related"
+          ? "crisis_related"
+          : item.safety_level === "sensitive"
+            ? "sensitive"
+            : "normal";
 
       // Check for existing similar memory
       const { data: existing } = await supabase
@@ -670,13 +725,11 @@ async function extractAndStoreMemories(
 
       // Insert evidence link
       if (matchedMemoryId && messageId) {
-        await supabase
-          .from("mend_memory_evidence")
-          .insert({
-            memory_id: matchedMemoryId,
-            message_id: messageId,
-            snippet: userMessage.slice(0, 200),
-          });
+        await supabase.from("mend_memory_evidence").insert({
+          memory_id: matchedMemoryId,
+          message_id: messageId,
+          snippet: userMessage.slice(0, 200),
+        });
       }
     }
 
@@ -692,7 +745,8 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, companion_mode, user_state, memory_moment, last_formulation_style, last_question_type } = await req.json();
+    const { messages, companion_mode, user_state, memory_moment, last_formulation_style, last_question_type } =
+      await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -707,27 +761,22 @@ serve(async (req) => {
     let conversationSummary: string | null = null;
     let memoryPack: MemoryPack | null = null;
     let userId: string | null = null;
-    
+
     try {
       const authHeader = req.headers.get("authorization");
       if (authHeader) {
         const supabase = getSupabaseAdmin();
         const token = authHeader.replace("Bearer ", "");
-        const { data: { user } } = await createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_ANON_KEY")!
-        ).auth.getUser(token);
+        const {
+          data: { user },
+        } = await createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!).auth.getUser(token);
 
         if (user) {
           userId = user.id;
-          
+
           // Fetch conversation state and memory pack in parallel
           const [stateResult, packResult] = await Promise.all([
-            supabase
-              .from("conversation_state")
-              .select("summary")
-              .eq("user_id", user.id)
-              .maybeSingle(),
+            supabase.from("conversation_state").select("summary").eq("user_id", user.id).maybeSingle(),
             getMemoryPack(supabase, user.id),
           ]);
 
@@ -742,17 +791,31 @@ serve(async (req) => {
     }
 
     // ── Pass A: Generate draft (non-streaming) ──
-    const draftPrompt = buildDraftPrompt(mode, bucket, user_state || null, conversationSummary, memoryPack, memory_moment);
+    const draftPrompt = buildDraftPrompt(
+      mode,
+      bucket,
+      user_state || null,
+      conversationSummary,
+      memoryPack,
+      memory_moment,
+    );
     const draftResponse = await callAI(LOVABLE_API_KEY, draftPrompt, messages);
 
     console.log("[mend_chat] Pass A draft generated, length:", draftResponse.length);
 
     // ── Pass B: Premium rewrite (streaming) ──
-    const { prompt: rewritePrompt, formulationStyle, questionType } = buildRewritePrompt(mode, bucket, last_formulation_style, last_question_type);
+    const {
+      prompt: rewritePrompt,
+      formulationStyle,
+      questionType,
+    } = buildRewritePrompt(mode, bucket, last_formulation_style, last_question_type);
     const rewriteMessages = [
       ...messages,
       { role: "assistant", content: draftResponse },
-      { role: "user", content: "Now rewrite this draft into the final premium response. Output ONLY the rewritten response." },
+      {
+        role: "user",
+        content: "Now rewrite this draft into the final premium response. Output ONLY the rewritten response.",
+      },
     ];
 
     const streamResponse = await streamAI(LOVABLE_API_KEY, rewritePrompt, rewriteMessages);
@@ -761,21 +824,21 @@ serve(async (req) => {
       if (streamResponse.status === 429) {
         return new Response(
           JSON.stringify({ error: "I need a moment to catch my breath. Please try again in a few seconds." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
       if (streamResponse.status === 402) {
         return new Response(
           JSON.stringify({ error: "The AI companion service needs attention. Please try again later." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
       const errorText = await streamResponse.text();
       console.error("AI gateway error (Pass B):", streamResponse.status, errorText);
-      return new Response(
-        JSON.stringify({ error: "Something went wrong. Let's try again in a moment." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Something went wrong. Let's try again in a moment." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // ── Validate + Debug log ──
@@ -813,7 +876,7 @@ serve(async (req) => {
               lastUserMsg,
               draftResponse,
               memoryPack,
-              recentMsg?.id
+              recentMsg?.id,
             ),
             (async () => {
               const snapshotPrompt = buildSnapshotPrompt();
@@ -826,14 +889,15 @@ serve(async (req) => {
               const jsonMatch = snapshotRaw.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
                 const snapshot = JSON.parse(jsonMatch[0]);
-                await supabase
-                  .from("conversation_state")
-                  .upsert({
+                await supabase.from("conversation_state").upsert(
+                  {
                     user_id: userId,
                     summary: snapshot.summary || "",
                     themes: snapshot.themes || [],
                     last_updated: new Date().toISOString(),
-                  }, { onConflict: "user_id" });
+                  },
+                  { onConflict: "user_id" },
+                );
                 console.log("[mend_chat] Conversation snapshot updated");
               }
             })(),
@@ -850,10 +914,9 @@ serve(async (req) => {
           if (!authHeader) return;
 
           const token = authHeader.replace("Bearer ", "");
-          const { data: { user } } = await createClient(
-            Deno.env.get("SUPABASE_URL")!,
-            Deno.env.get("SUPABASE_ANON_KEY")!
-          ).auth.getUser(token);
+          const {
+            data: { user },
+          } = await createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!).auth.getUser(token);
 
           if (!user) return;
 
@@ -868,14 +931,15 @@ serve(async (req) => {
           if (jsonMatch) {
             const snapshot = JSON.parse(jsonMatch[0]);
             const supabase = getSupabaseAdmin();
-            await supabase
-              .from("conversation_state")
-              .upsert({
+            await supabase.from("conversation_state").upsert(
+              {
                 user_id: user.id,
                 summary: snapshot.summary || "",
                 themes: snapshot.themes || [],
                 last_updated: new Date().toISOString(),
-              }, { onConflict: "user_id" });
+              },
+              { onConflict: "user_id" },
+            );
           }
         } catch (e) {
           console.error("Snapshot update failed:", e);
@@ -894,9 +958,9 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("mend_chat error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
