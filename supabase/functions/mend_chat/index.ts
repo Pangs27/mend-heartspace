@@ -33,50 +33,13 @@ const CRISIS_KEYWORDS = [
   "need to talk to someone about suicide",
   "can't go on anymore",
   "feeling like ending my life",
+  "helpline",
+  "hotline",
+  "suicide number",
+  "suicide line",
+  "crisis line",
+  "need help now",
 ];
-
-const GREETING_PATTERNS = [
-  /^(hi|hello|hey|hiya|howdy)$/i,
-  /^(hi|hello|hey|hiya|howdy)\s+there$/i,
-  /^good\s+(morning|afternoon|evening)$/i,
-];
-
-function isGreetingOnly(input: string): boolean {
-  const normalized = input
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s']/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (!normalized) return false;
-  const words = normalized.split(" ");
-  if (words.length > 3) return false;
-
-  return GREETING_PATTERNS.some((pattern) => pattern.test(normalized));
-}
-
-function createSseResponse(content: string, bucket: string): Response {
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    start(controller) {
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`),
-      );
-      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-      controller.close();
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "text/event-stream",
-      "X-Communication-Bucket": bucket,
-      "X-Formulation-Style": "",
-      "X-Question-Type": "",
-    },
-  });
-}
 
 function detectCrisis(text: string): boolean {
   const lower = text.toLowerCase();
@@ -87,6 +50,19 @@ function classifyBucket(userText: string, mode: string): string {
   if (detectCrisis(userText)) return "Crisis";
 
   const lower = userText.toLowerCase();
+
+  const smallTalkPatterns = [
+    /^(hi|hello|hey|hiya|howdy|sup|yo)/i,
+    /^(how are you|how's it going|what's up)/i,
+    /^(tell me a joke|who are you)/i,
+    /^(thanks|thank you|bye|goodbye|cya)/i,
+    /^(good|fine|ok|okay|not bad|great)/i,
+  ];
+
+  if (userText.split(" ").length <= 8 && smallTalkPatterns.some((p) => p.test(lower))) {
+    return "Small Talk";
+  }
+
   const allowed = MODE_BUCKETS[mode] || MODE_BUCKETS["Reflect with me"];
 
   const signals: Record<string, number> = {};
@@ -332,10 +308,37 @@ function buildDraftPrompt(
   memoryMoment?: string,
 ): string {
   const modeTemplate = MODE_TEMPLATES[mode] || MODE_TEMPLATES["Reflect with me"];
-  const bucketContext =
-    bucket === "Crisis"
-      ? "CRISIS OVERRIDE: Gently acknowledge what they shared. Encourage reaching out to someone they trust or the Indian Suicide Hotline at 9152987821. Be present, not prescriptive. Keep your response brief and warm."
-      : `Communication bucket: ${bucket}`;
+  let coreInstruction = modeTemplate;
+  let bucketContext = `Communication bucket: ${bucket}`;
+
+  if (bucket === "Crisis") {
+    coreInstruction = `MODE: Crisis Response
+Goal: Immediate safety and connection.
+Structure:
+1. Acknowledge: Gently and briefly acknowledge the weight of what they shared.
+2. Mandatory Resource: YOU MUST provide the Indian Suicide Hotline at 9152987821.
+3. Presence: A warm, brief statement of presence.
+
+Rules:
+- DO NOT mention any other hotline (no 988, no 741741).
+- Keep it under 80 words.
+- No clinical jargon.
+- No complex curiosity questions. At most, ask if they can reach out to someone they trust.`;
+    bucketContext = "CRISIS OVERRIDE ACTIVE: Priority is safe referral to the Indian Suicide Hotline (9152987821).";
+  } else if (bucket === "Small Talk") {
+    coreInstruction = `MODE: Small Talk
+Goal: Be a natural, friendly, non-clinical companion.
+Structure:
+1. Warm Response: Respond naturally to their greeting or casual remark.
+2. Gentle Pivot: Briefly ask how they are really doing or what's on their mind.
+
+Rules:
+- 2-3 sentences maximum.
+- Casual, warm, like a mature friend texting.
+- NO clinical jargon or deep analysis.
+- DO NOT force emotional reflection.`;
+    bucketContext = "Communication bucket: Small Talk (Keep it casual and simple)";
+  }
 
   let userContext = "";
   if (userState) {
@@ -372,14 +375,14 @@ function buildDraftPrompt(
 
   return `You are MEND, a reflective emotional companion. Not a therapist, coach, or authority.
 
-${modeTemplate}
+${coreInstruction}
 
 ${bucketContext}
 ${userContext}${convContext}${memoryContext}${memoryMomentContext}
 
-GLOBAL CRAFT REQUIREMENTS (apply to every response):
+GLOBAL CRAFT REQUIREMENTS (apply to every response except in Crisis or Small Talk):
 - Maximum 120 words. Exactly 3 short parts.
-- Include: 1 surface emotion, 1 protective emotion (if applicable), 1 inferred emotional need (safety, clarity, reassurance, autonomy, connection, or rest).
+- Include: 1 surface emotion, 1 protective emotion (if applicable), 1 inferred emotional need.
 - Reference at least 1 concrete phrase from the user's message.
 ${mode === "Just listen" || mode === "Challenge me gently" ? "- Do NOT ask any questions. End with a statement." : "- Ask exactly 1 targeted question."}
 - FORBIDDEN phrases: "it sounds like", "it seems like", "maybe", "perhaps", "I wonder if", "It is understandable".
@@ -389,7 +392,7 @@ ${mode === "Just listen" || mode === "Challenge me gently" ? "- Do NOT ask any q
 - Do NOT explain why feelings occur or suggest underlying causes.
 - Avoid therapist-style or clinical language.
 - Do not introduce metaphors or theories unless the user uses them first.
-- Never give advice, solutions, action items, or next steps.
+- Never give advice, solutions, action items, or next steps (EXCEPT for the Indian Suicide Hotline at 9152987821 when in Crisis).
 - Never use diagnostic or clinical terms.
 - Never present yourself as an expert or authority.
 
@@ -424,6 +427,25 @@ function buildRewritePrompt(
   const questionType = pickRandom(QUESTION_TYPES, prevQuestionType as any);
 
   const noQuestionMode = mode === "Just listen" || mode === "Challenge me gently";
+  const isSmallTalk = bucket === "Small Talk";
+
+  if (isSmallTalk) {
+    return {
+      prompt: `You are rewriting a draft companion response. 
+Make it feel deeply human, natural, and like a casual text from a mature friend.
+
+Response rules:
+1. Maximum 3 sentences.
+2. Warm, simple, conversational tone.
+3. No therapeutic jargon or deep emotional layering.
+4. End with a simple, natural question about how they are doing (unless they said goodbye).
+
+The final output must be the rewritten response only.
+No explanations or labels.`,
+      formulationStyle: "casual",
+      questionType: "casual"
+    };
+  }
 
   const prompt = `You are rewriting a draft companion response into a premium, emotionally intelligent response.
 
@@ -464,8 +486,8 @@ Response rules:
 6. Avoid repetitive sentence rhythm.
 7. Avoid therapy-manual phrasing.
 8. Use concrete language drawn from the user's message.
-9. ${noQuestionMode ? "Do not include a question. End with a statement." : "Maintain exactly one question."}
-10. ${noQuestionMode ? "End every response with a statement, never a question mark." : `Ask exactly 1 question of type "${questionType}".`}
+9. ${noQuestionMode || bucket === "Crisis" ? "Do not include a curiosity question. End with a statement or a simple safety-related question." : "Maintain exactly one question."}
+10. ${bucket === "Crisis" ? "CRISIS REQUIREMENT: You MUST include the Indian Suicide Hotline (9152987821). DO NOT mention 988. This is the top priority." : noQuestionMode ? "End every response with a statement, never a question mark." : `Ask exactly 1 question of type "${questionType}".`}
 
 Formulation style guidance:
 
@@ -510,7 +532,7 @@ Ask what would feel different next time.`
       : ""
     }
 
-${bucket === "Crisis" ? "CRISIS: Gently acknowledge. Encourage reaching out to someone trusted or the Indian Suicide Hotline at 9152987821. Brief and warm." : ""}
+${bucket === "Crisis" ? "CRISIS: YOU MUST include the Indian Suicide Hotline at 9152987821. DO NOT mention 988. Gently acknowledge what they shared. Brief and warm." : ""}
 
 The final output must be the rewritten response only.
 No explanations.
@@ -761,11 +783,6 @@ serve(async (req) => {
 
     const mode = companion_mode || "Reflect with me";
     const lastUserMsg = [...messages].reverse().find((m: any) => m.role === "user")?.content || "";
-
-    if (isGreetingOnly(lastUserMsg)) {
-      return createSseResponse("Hi, I’m glad you’re here. How are you doing today?", "Greeting");
-    }
-
     const bucket = classifyBucket(lastUserMsg, mode);
 
     // Fetch conversation state + memory pack
