@@ -24,6 +24,10 @@ import CheckIn from "./pages/CheckIn";
 import Journal from "./pages/Journal";
 import Insights from "./pages/Insights";
 import NotFound from "./pages/NotFound";
+import Blog from "./pages/Blog";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import CookiePolicy from "./pages/CookiePolicy";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +45,10 @@ const App = () => (
             <Route path="/how-mend-helps" element={<HowMendHelps />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/community" element={<Circles />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/cookies" element={<CookiePolicy />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
