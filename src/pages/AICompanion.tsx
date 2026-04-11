@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Sparkles, Heart, Cloud, Moon, Lock, RotateCcw, ChevronDown } from "lucide-react";
+import { Send, Sparkles, Heart, Cloud, Moon, Lock, RotateCcw, ChevronDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -27,6 +27,7 @@ import { ReflectionBubble } from "@/components/chat/ReflectionBubble";
 import { useCompanionMode } from "@/hooks/useCompanionMode";
 import { ModeSelector } from "@/components/chat/ModeSelector";
 import { computeUserState, buildDynamicPrompts } from "@/lib/userState";
+import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
 
 const ICON_MAP = {
   sparkles: Sparkles,
@@ -34,6 +35,12 @@ const ICON_MAP = {
   moon: Moon,
   heart: Heart,
 } as const;
+
+interface Conversation {
+  id: string;
+  title: string | null;
+  updated_at: string | null;
+}
 
 interface ChatMessage {
   id: string;
@@ -66,6 +73,11 @@ export default function AICompanion() {
   const [pendingMemoryMoment, setPendingMemoryMoment] = useState<string | null>(null);
   const [lastFormulationStyle, setLastFormulationStyle] = useState<string | null>(null);
   const [lastQuestionType, setLastQuestionType] = useState<string | null>(null);
+
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [isFetchingConversations, setIsFetchingConversations] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const { reflectionMessage, evaluate: evaluateReflection, reset: resetReflection, suppressToday } = useReflectionBubble(user?.id);
 
@@ -114,31 +126,68 @@ export default function AICompanion() {
     }
   }, [messages, hasInitiallyScrolled, isNearBottom, scrollToBottom]);
 
-  // Fetch chat history
+  // Fetch conversations
   useEffect(() => {
-    const fetchChatHistory = async () => {
+    const fetchConversations = async () => {
       if (!isAuthenticated || !user?.id) {
-        setIsFetchingHistory(false);
+        setIsFetchingConversations(false);
         return;
       }
 
       try {
         const { data, error } = await supabase
+          .from("mend_conversations")
+          .select("id, title, updated_at")
+          .order("updated_at", { ascending: false });
+
+        if (error) {
+          console.error("Error fetching conversations:", error);
+        } else if (data) {
+          setConversations(data);
+          if (data.length > 0) {
+            setActiveConversationId(data[0].id);
+          } else {
+            // Auto-create initial conversation if none exist
+            handleNewChat();
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching conversations:", err);
+      } finally {
+        setIsFetchingConversations(false);
+      }
+    };
+
+    fetchConversations();
+  }, [isAuthenticated, user?.id]);
+
+  // Fetch chat history for active conversation
+  useEffect(() => {
+    const fetchChatHistory = async () => {
+      if (!isAuthenticated || !user?.id || !activeConversationId) {
+        if (!isAuthenticated) setIsFetchingHistory(false);
+        return;
+      }
+
+      setIsFetchingHistory(true);
+      try {
+        const { data, error } = await supabase
           .from("mend_messages")
           .select("id, role, content, created_at")
-          .eq("user_id", user.id)
+          .eq("conversation_id", activeConversationId)
           .order("created_at", { ascending: true });
 
         if (error) {
           console.error("Error fetching chat history:", error);
           toast.error("Couldn't load your previous conversations");
-        } else if (data && data.length > 0) {
+        } else {
           setMessages(data.map((msg) => ({
             id: msg.id,
             role: msg.role as "user" | "assistant",
             content: msg.content,
             created_at: msg.created_at,
           })));
+          setHasInitiallyScrolled(false);
         }
       } catch (err) {
         console.error("Error fetching chat history:", err);
@@ -148,7 +197,7 @@ export default function AICompanion() {
     };
 
     fetchChatHistory();
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user?.id, activeConversationId]);
 
   const handleSendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isDisabled || isLoading) return;
@@ -257,12 +306,35 @@ export default function AICompanion() {
           role: "user",
           content: trimmedContent,
           experience_mode: mode,
+          conversation_id: activeConversationId,
         })
         .select()
         .single();
 
       if (userMsgError) {
         throw new Error("Failed to save your message");
+      }
+
+      // Update conversation title if it's the first message
+      if (messages.length === 0 && activeConversationId) {
+        const title = trimmedContent.split(/\s+/).slice(0, 7).join(" ") + (trimmedContent.split(/\s+/).length > 7 ? "..." : "");
+        await supabase
+          .from("mend_conversations")
+          .update({ title, updated_at: new Date().toISOString() })
+          .eq("id", activeConversationId);
+        
+        setConversations(prev => prev.map(c => 
+          c.id === activeConversationId ? { ...c, title, updated_at: new Date().toISOString() } : c
+        ));
+      } else if (activeConversationId) {
+        await supabase
+          .from("mend_conversations")
+          .update({ updated_at: new Date().toISOString() })
+          .eq("id", activeConversationId);
+        
+        setConversations(prev => prev.map(c => 
+          c.id === activeConversationId ? { ...c, updated_at: new Date().toISOString() } : c
+        ).sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime()));
       }
 
       const userMessage: ChatMessage = {
@@ -316,6 +388,7 @@ export default function AICompanion() {
               content: assistantContent,
               experience_mode: mode,
               communication_bucket: result.communicationBucket,
+              conversation_id: activeConversationId,
             })
             .select()
             .single();
@@ -369,12 +442,12 @@ export default function AICompanion() {
   const handleClearConversation = useCallback(async () => {
     if (messages.length === 0 || isLoading) return;
 
-    if (isAuthenticated && user?.id) {
+    if (isAuthenticated && user?.id && activeConversationId) {
       try {
         const { error } = await supabase
           .from("mend_messages")
           .delete()
-          .eq("user_id", user.id);
+          .eq("conversation_id", activeConversationId);
 
         if (error) {
           console.error("Error clearing messages:", error);
@@ -393,8 +466,78 @@ export default function AICompanion() {
     setShowRedirectMessage(false);
     resetReflection();
     setReflectionAttachedTo(null);
-    toast.success("Conversation cleared");
-  }, [isAuthenticated, isLoading, messages.length, user?.id, resetReflection]);
+    toast.success("Messages cleared");
+  }, [isAuthenticated, isLoading, messages.length, user?.id, activeConversationId, resetReflection]);
+
+  const handleNewChat = useCallback(async () => {
+    if (!isAuthenticated || !user?.id) {
+      setMessages([]);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("mend_conversations")
+        .insert({
+          user_id: user.id,
+          title: "New Chat",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setConversations(prev => [data, ...prev]);
+      setActiveConversationId(data.id);
+      setMessages([]);
+      resetReflection();
+      setReflectionAttachedTo(null);
+    } catch (err) {
+      console.error("Error creating new chat:", err);
+      toast.error("Failed to create new chat");
+    }
+  }, [isAuthenticated, user?.id, resetReflection]);
+
+  const handleDeleteConversation = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("mend_conversations")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setConversations(prev => prev.filter(c => c.id !== id));
+      if (activeConversationId === id) {
+        const remaining = conversations.filter(c => c.id !== id);
+        if (remaining.length > 0) {
+          setActiveConversationId(remaining[0].id);
+        } else {
+          handleNewChat();
+        }
+      }
+      toast.success("Conversation deleted");
+    } catch (err) {
+      console.error("Error deleting conversation:", err);
+      toast.error("Failed to delete conversation");
+    }
+  }, [activeConversationId, conversations, handleNewChat]);
+
+  const handleRenameConversation = useCallback(async (id: string, newTitle: string) => {
+    try {
+      const { error } = await supabase
+        .from("mend_conversations")
+        .update({ title: newTitle })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setConversations(prev => prev.map(c => c.id === id ? { ...c, title: newTitle } : c));
+    } catch (err) {
+      console.error("Error renaming conversation:", err);
+      toast.error("Failed to rename conversation");
+    }
+  }, []);
 
   const handlePromptClick = (prompt: string) => {
     if (!isDisabled && !isLoading) {
@@ -427,11 +570,64 @@ export default function AICompanion() {
 
   return (
     <Layout hideFooter fullScreen>
-      <div className="h-full min-h-0 flex flex-col">
-        <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
-          <AlertDialogContent className="max-w-sm rounded-2xl">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="font-serif">Start fresh?</AlertDialogTitle>
+      <div className="flex h-full min-h-0 bg-background overflow-hidden relative">
+        {isAuthenticated && (
+          <motion.div
+            initial={false}
+            animate={{ 
+              width: isSidebarOpen ? 320 : 0,
+              opacity: isSidebarOpen ? 1 : 0
+            }}
+            transition={{ type: "spring", damping: 30, stiffness: 200 }}
+            className="h-full z-20 overflow-hidden relative flex-shrink-0"
+          >
+            <div className="w-80 h-full"> 
+              <ConversationSidebar
+                conversations={conversations}
+                activeId={activeConversationId}
+                onSelect={setActiveConversationId}
+                onNewChat={handleNewChat}
+                onDelete={handleDeleteConversation}
+                onRename={handleRenameConversation}
+                isLoading={isFetchingConversations}
+              />
+            </div>
+          </motion.div>
+        )}
+
+        {/* Sidebar Toggle Bubble Node — Positioned relative to the screen for smoothness */}
+        {isAuthenticated && (
+          <motion.button
+            initial={false}
+            animate={{ 
+              left: isSidebarOpen ? 336 : 16,
+            }}
+            transition={{ type: "spring", damping: 30, stiffness: 200 }}
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="absolute top-5 z-40 group"
+          >
+            <div className="relative flex items-center justify-center">
+              {/* Glowing Aura */}
+              <div className="absolute inset-0 rounded-full bg-primary/20 blur-md group-hover:bg-primary/30 transition-colors animate-pulse" />
+              
+              {/* The Bubble Button — Refined to be slightly smaller */}
+              <div className="relative w-9 h-9 rounded-full bg-white/90 backdrop-blur-xl border border-primary/20 shadow-soft flex items-center justify-center transition-all duration-300 group-hover:border-primary/40 group-hover:scale-110 group-active:scale-95">
+                <div className={`w-[18px] h-[18px] transition-transform duration-500 ${isSidebarOpen ? '' : 'rotate-180'}`}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full text-primary/70">
+                    <rect width="18" height="18" x="3" y="3" rx="2" />
+                    <path d="M9 3v18" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </motion.button>
+        )}
+        
+        <div className="flex-1 flex flex-col min-w-0 bg-background/50 relative">
+          <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+            <AlertDialogContent className="max-w-sm rounded-2xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="font-serif">Start fresh?</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
                 This will clear your conversation history. Your patterns and insights will remain.
               </AlertDialogDescription>
@@ -682,7 +878,7 @@ export default function AICompanion() {
                       className="flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors ml-auto disabled:opacity-50"
                     >
                       <RotateCcw className="w-3 h-3" />
-                      <span>New</span>
+                      <span>Start over</span>
                     </motion.button>
                   )}
                 </AnimatePresence>
@@ -729,6 +925,7 @@ export default function AICompanion() {
               </AnimatePresence>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </Layout>
